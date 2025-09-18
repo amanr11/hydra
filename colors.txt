@@ -1,0 +1,29 @@
+Primary Palette
+
+Deep Navy: #0A2540 → headers, strong text, background accents (gives it depth, trust vibe).
+
+Sky Blue: #3ABEFF → main CTA buttons, highlights, progress ring.
+
+Aqua Mint: #6FE7DD → secondary highlights, tips background.
+
+Secondary/Accents
+
+Sunset Coral: #FF6B6B → alerts, “missed goal” status, streak fails.
+
+Golden Amber: #F7B801 → achievement unlocks, progress badges.
+
+Backgrounds & Surfaces
+
+Pure White: #FFFFFF → main background (keeps it airy).
+
+Soft Gray: #F4F6F8 → cards, history entries.
+
+Charcoal: #1C1C1E → dark mode background.
+
+Text
+
+Almost Black: #111111 → main text (instead of pure black, softer).
+
+Cool Gray: #6B7280 → secondary text.
+
+White: #FFFFFF → text on dark/colored buttons.

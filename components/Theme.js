@@ -1,6 +1,27 @@
-export const spacing = { tiny:4, small:8, medium:16, large:24, xlarge:40 };
-export const fonts = { body:16, subtitle:20, title:32 };
-export const colors = {
-  light:{ background:'#fff', text:'#222', secondary:'#f5f5f5', primary:'#28a745', accent:'#f1c40f' },
-  dark:{ background:'#121212', text:'#fff', secondary:'#1f1f1f', primary:'#28a745', accent:'#f1c40f' }
-};
+export const COLOR = {
+    deepNavy: '#0A2540', // main deep background
+    skyBlue: '#3ABEFF', // main CTA / primary ring
+    aquaMint: '#6FE7DD', // secondary highlights
+    coral: '#FF6B6B', // alerts / missed
+    amber: '#F7B801', // achievements / badges
+    white: '#FFFFFF',
+    softGray: '#F4F6F8',
+    charcoal: '#1C1C1E',
+    textDark: '#111111',
+    textMuted: '#6B7280',
+  };
+  
+  export const lightTheme = {
+    background: "#f0f4f7",
+    secondary: "#ffffff",
+    text: COLOR.textDark,
+    accent: COLOR.skyBlue,
+  };
+  
+  export const darkTheme = {
+    background: "#1c1c1e",
+    secondary: "#2c2c2e",
+    text: COLOR.white,
+    accent: COLOR.aquaMint,
+  };
+  
