@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, View, Easing, Text } from 'react-native';
+import PropTypes from 'prop-types';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle, ClipPath, Rect as SvgRect } from 'react-native-svg';
 import { COLOR } from './Theme';
 
@@ -160,3 +161,11 @@ export default function DropProgress({ progress = 0, size = 220, text, subtitle,
     </View>
   );
 }
+
+DropProgress.propTypes = {
+  progress: PropTypes.number,
+  size: PropTypes.number,
+  text: PropTypes.string,
+  subtitle: PropTypes.string,
+  theme: PropTypes.object
+};

@@ -24,4 +24,48 @@ export const COLOR = {
     text: COLOR.white,
     accent: COLOR.aquaMint,
   };
+
+  // Theme variations for unlockable themes
+  export const unlockableThemes = {
+    default: {
+      name: 'Ocean Deep',
+      background: COLOR.deepNavy,
+      secondary: COLOR.softGray,
+      text: COLOR.white,
+      accent: COLOR.skyBlue,
+      unlockRequirement: 'default'
+    },
+    sunset: {
+      name: 'Sunset Glow',
+      background: '#FF6B35',
+      secondary: '#F7931E',
+      text: COLOR.white,
+      accent: '#FFE66D',
+      unlockRequirement: '7 day streak'
+    },
+    forest: {
+      name: 'Forest Green',
+      background: '#2D5016',
+      secondary: '#4F772D',
+      text: COLOR.white,
+      accent: '#90A955',
+      unlockRequirement: '30 day streak'
+    },
+    midnight: {
+      name: 'Midnight Blue',
+      background: '#03045E',
+      secondary: '#023E8A',
+      text: COLOR.white,
+      accent: '#0077B6',
+      unlockRequirement: '1000 XP'
+    },
+    rose: {
+      name: 'Rose Gold',
+      background: '#B08D57',
+      secondary: '#D4AF37',
+      text: COLOR.white,
+      accent: '#FFD700',
+      unlockRequirement: '50 day streak'
+    }
+  };
   

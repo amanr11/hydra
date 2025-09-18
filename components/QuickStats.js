@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import PropTypes from 'prop-types';
 import * as Animatable from 'react-native-animatable';
 import { COLOR } from './Theme';
 
@@ -43,3 +44,11 @@ export default function QuickStats({ total, goal, streak, todayIntake, theme }) 
     </Animatable.View>
   );
 }
+
+QuickStats.propTypes = {
+  total: PropTypes.number.isRequired,
+  goal: PropTypes.number.isRequired,
+  streak: PropTypes.number.isRequired,
+  todayIntake: PropTypes.array.isRequired,
+  theme: PropTypes.object.isRequired
+};
