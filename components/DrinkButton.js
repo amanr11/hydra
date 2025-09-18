@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import PropTypes from 'prop-types';
 import * as Animatable from 'react-native-animatable';
 import { COLOR } from './Theme';
 
@@ -75,3 +76,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+DrinkButton.propTypes = {
+  option: PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    ml: PropTypes.number.isRequired,
+    emoji: PropTypes.string.isRequired,
+    hydrationValue: PropTypes.number,
+    category: PropTypes.string
+  }).isRequired,
+  onPress: PropTypes.func.isRequired,
+  color: PropTypes.string,
+  enhanced: PropTypes.bool
+};
