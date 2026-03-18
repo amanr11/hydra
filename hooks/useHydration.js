@@ -153,6 +153,11 @@ export const useHydration = (userProfile) => {
         const xpGain = await XPService.addXP(xpResult.totalXP, 'Hydration progress');
         if (xpGain) {
           setUserXP(xpGain.newXP);
+
+          // Track XP earned from water intake today for potential reset deduction
+          const todayKey = getTodayKey();
+          const existingDailyXP = await StorageService.getDailyXPEarned(todayKey);
+          await StorageService.setDailyXPEarned(todayKey, existingDailyXP + xpResult.totalXP);
           
           // Show XP notification for significant gains
           if (xpGain.gainedXP >= 25) {
@@ -188,6 +193,16 @@ export const useHydration = (userProfile) => {
       setTotal(0);
       setTodayIntake([]);
       
+      // Deduct XP earned from water intake today
+      const dailyXPEarned = await StorageService.getDailyXPEarned(todayKey);
+      if (dailyXPEarned > 0) {
+        const currentXP = await StorageService.getXP();
+        const newXP = Math.max(0, currentXP - dailyXPEarned);
+        await StorageService.setXP(newXP);
+        await StorageService.setDailyXPEarned(todayKey, 0);
+        setUserXP(newXP);
+      }
+
       await Promise.all([
         StorageService.setDailyTotal(todayKey, 0),
         StorageService.setTodayIntake(todayKey, [])

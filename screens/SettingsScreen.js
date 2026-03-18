@@ -9,6 +9,7 @@ import StreakSafeguard from '../components/StreakSafeguard';
 import CustomReminders from '../components/CustomReminders';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
+import XPService from '../services/XPService';
 
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
@@ -49,6 +50,7 @@ export default function SettingsScreen({
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [userXP, setUserXP] = useState(0);
 
   const [showStreakSafeguard, setShowStreakSafeguard] = useState(false);
   const [showCustomReminders, setShowCustomReminders] = useState(false);
@@ -71,6 +73,7 @@ export default function SettingsScreen({
   useEffect(() => {
     loadSettings();
     loadStreakStats();
+    loadXP();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -118,6 +121,15 @@ export default function SettingsScreen({
       setStreakStats(stats);
     } catch (error) {
       console.error('Error loading streak stats:', error);
+    }
+  };
+
+  const loadXP = async () => {
+    try {
+      const xp = await StorageService.getXP();
+      setUserXP(xp);
+    } catch (error) {
+      console.error('Error loading XP:', error);
     }
   };
 
@@ -322,6 +334,8 @@ export default function SettingsScreen({
   const recGoalDisplay = units === 'oz' ? `${toOz(recGoalMl)} oz` : `${recGoalMl} ml`;
   const dailyGoalDisplay = units === 'oz' ? `${toOz(dailyGoal)} oz` : `${dailyGoal} ml`;
 
+  const xpData = XPService.getXPSummary(userXP);
+
   if (!settings) {
     return (
       <LoadingOverlay visible message="Loading settings...">
@@ -339,10 +353,77 @@ export default function SettingsScreen({
           <ScrollView style={{ flex: 1, padding: 20 }} showsVerticalScrollIndicator={false}>
             <Animatable.Text
               animation="fadeInDown"
-              style={{ fontSize: 28, fontWeight: 'bold', color: COLOR.white, marginBottom: 25 }}
+              style={{ fontSize: 28, fontWeight: 'bold', color: COLOR.white, marginBottom: 20 }}
             >
               ⚙️ Settings
             </Animatable.Text>
+
+            {/* Level & XP Progress Card */}
+            <Animatable.View animation="fadeInUp" delay={100} style={levelCardStyle}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: COLOR.amber }}>
+                    LV {xpData.level}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: COLOR.white, opacity: 0.9, marginTop: 2 }}>
+                    {xpData.title}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: COLOR.aquaMint }}>
+                    {xpData.currentXP} XP
+                  </Text>
+                  {!xpData.isMaxLevel && (
+                    <Text style={{ fontSize: 11, color: COLOR.white, opacity: 0.65, marginTop: 2 }}>
+                      {xpData.xpToNext} XP to Level {xpData.level + 1}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {!xpData.isMaxLevel ? (
+                <>
+                  <View style={{ height: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden' }}>
+                    <Animatable.View
+                      animation="slideInLeft"
+                      duration={900}
+                      style={{ width: `${xpData.progress}%`, height: '100%', backgroundColor: COLOR.amber, borderRadius: 4 }}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: COLOR.white, opacity: 0.6, marginTop: 5, textAlign: 'right' }}>
+                    {xpData.progress}% to next level
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ color: COLOR.amber, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>
+                  🏆 MAX LEVEL REACHED!
+                </Text>
+              )}
+
+              {/* XP How-to guide */}
+              <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: COLOR.aquaMint, marginBottom: 6 }}>
+                  💡 How to earn XP
+                </Text>
+                {[
+                  { icon: '🥇', text: 'First drink of the day', xp: '+10 XP' },
+                  { icon: '🎯', text: 'Complete your daily goal', xp: '+50 XP' },
+                  { icon: '📈', text: 'Reach 25 / 50 / 75% of goal', xp: '+10–20 XP' },
+                  { icon: '🔥', text: 'Maintain a 3-day streak', xp: '+25 XP' },
+                  { icon: '🔥', text: 'Maintain a 7-day streak', xp: '+75 XP' },
+                  { icon: '⚠️', text: 'Reset today\'s progress', xp: '−Daily XP' },
+                ].map((item, i) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 12, color: COLOR.white, opacity: 0.8 }}>
+                      {item.icon} {item.text}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: item.xp.startsWith('−') ? COLOR.coral : COLOR.amber }}>
+                      {item.xp}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </Animatable.View>
 
             {/* Profile */}
             <View style={{ marginBottom: 30 }}>
@@ -682,6 +763,15 @@ export default function SettingsScreen({
 }
 
 // Styles
+const levelCardStyle = {
+  backgroundColor: 'rgba(255,215,0,0.08)',
+  borderRadius: 16,
+  padding: 16,
+  marginBottom: 24,
+  borderWidth: 1,
+  borderColor: 'rgba(255,215,0,0.25)',
+};
+
 const sectionTitleStyle = {
   fontSize: 20,
   fontWeight: '600',

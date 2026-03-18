@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
+import { useNavigation } from '@react-navigation/native';
 
 import GradientBackground from '../components/GradientBackground';
 import DropProgress from '../components/DropProgress';
@@ -14,6 +15,7 @@ import XPProgress from '../components/XPProgress';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
+import XPService from '../services/XPService';
 
 import { useHydration } from '../hooks/useHydration';
 import StorageService from '../services/StorageService';
@@ -41,12 +43,16 @@ export default function HomeScreen({
   theme,
   userProfile,
 }) {
+  const navigation = useNavigation();
   const { total, todayIntake, streak, userXP, loading, error, addDrink, resetDay } = useHydration(userProfile);
 
   const [showConfetti, setShowConfetti] = useState(false);
   const confettiRef = useRef(null);
 
   const [units, setUnits] = useState('ml');
+
+  // Compute level data from XP
+  const xpData = useMemo(() => XPService.getXPSummary(userXP || 0), [userXP]);
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -103,7 +109,7 @@ export default function HomeScreen({
   );
 
   const handleResetDay = useCallback(() => {
-    Alert.alert("Reset Today", "Are you sure you want to reset today's progress? This cannot be undone.", [
+    Alert.alert("Reset Today", "Reset today's progress and lose XP earned today? This cannot be undone.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Reset',
@@ -144,20 +150,52 @@ export default function HomeScreen({
           <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
             <ConfettiCannon ref={confettiRef} count={200} origin={{ x: -10, y: 0 }} autoStart={false} fadeOut />
 
-            {/* Header */}
-            <Text
-              style={{
-                fontSize: 50,
-                fontWeight: '900',
-                color: COLOR.white,
-                marginTop: 20,
-                textShadowColor: 'rgba(0, 0, 0, 0.8)',
-                textShadowOffset: { width: -3, height: 3 },
-                textShadowRadius: 6,
-              }}
-            >
-              hydra
-            </Text>
+            {/* Header row with title and level badge */}
+            <View style={{ width: '100%', flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', marginTop: 20, paddingHorizontal: 20 }}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text
+                  style={{
+                    fontSize: 50,
+                    fontWeight: '900',
+                    color: COLOR.white,
+                    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+                    textShadowOffset: { width: -3, height: 3 },
+                    textShadowRadius: 6,
+                  }}
+                >
+                  hydra
+                </Text>
+              </View>
+
+              {/* Level Badge - top right */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Settings')}
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 4,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  borderRadius: 14,
+                  padding: 8,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,215,0,0.4)',
+                  alignItems: 'center',
+                  minWidth: 64,
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Level ${xpData.level}, tap to view profile`}
+              >
+                <Text style={{ fontSize: 10, color: COLOR.amber, fontWeight: '700', letterSpacing: 0.5 }}>
+                  LV {xpData.level}
+                </Text>
+                <View style={{ width: 48, height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
+                  <View style={{ width: `${xpData.progress}%`, height: '100%', backgroundColor: COLOR.amber, borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 9, color: COLOR.white, opacity: 0.75, marginTop: 2 }}>
+                  {xpData.currentXP} XP
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={{ fontSize: 18, color: COLOR.white, opacity: 0.8, marginBottom: 20, fontWeight: '500' }}>
               Hello, {userProfile.name}! 👋
