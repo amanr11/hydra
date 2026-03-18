@@ -179,7 +179,6 @@ class StorageService {
         customReminders: [],
         largeFontMode: false,
         highContrastMode: false,
-        voiceLoggingEnabled: false
       };
     } catch (error) {
       console.error('Error getting settings:', error);
@@ -189,7 +188,6 @@ class StorageService {
         customReminders: [],
         largeFontMode: false,
         highContrastMode: false,
-        voiceLoggingEnabled: false
       };
     }
   }

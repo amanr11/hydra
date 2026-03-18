@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, Switch, Alert, ScrollView, TextInput } fr
 import PropTypes from 'prop-types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
-import WaveBottom from '../components/WaveBottom';
 import GradientBackground from '../components/GradientBackground';
 import StreakSafeguard from '../components/StreakSafeguard';
 import CustomReminders from '../components/CustomReminders';
@@ -388,15 +387,6 @@ export default function SettingsScreen({
                 />
               </View>
 
-              <View style={[settingCardStyle, switchRowStyle]}>
-                <Text style={settingLabelStyle}>Voice Logging</Text>
-                <Switch 
-                  value={settings.voiceLoggingEnabled} 
-                  onValueChange={(value) => updateSetting('voiceLoggingEnabled', value)}
-                  trackColor={{ false: 'rgba(255,255,255,0.3)', true: COLOR.skyBlue }}
-                  thumbColor={settings.voiceLoggingEnabled ? COLOR.white : COLOR.white}
-                />
-              </View>
             </View>
 
             {/* App Preferences */}
@@ -426,7 +416,6 @@ export default function SettingsScreen({
               </TouchableOpacity>
             </View>
           </ScrollView>
-          <WaveBottom />
 
           {/* Modals */}
           <StreakSafeguard 

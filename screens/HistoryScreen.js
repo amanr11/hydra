@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import PropTypes from 'prop-types';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import WaveBottom from '../components/WaveBottom';
 import GradientBackground from '../components/GradientBackground';
 import { LoadingOverlay, SkeletonLoader } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
@@ -262,7 +261,6 @@ export default function HistoryScreen({ dailyGoal, theme }) {
             contentContainerStyle={{ paddingBottom: 100 }}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           />
-          <WaveBottom />
         </View>
       </SafeAreaView>
     </GradientBackground>

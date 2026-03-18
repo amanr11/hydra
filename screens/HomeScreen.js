@@ -9,10 +9,7 @@ import DropProgress from '../components/DropProgress';
 import DrinkButton from '../components/DrinkButton';
 import WaveBottom from '../components/WaveBottom';
 import QuickStats from '../components/QuickStats';
-import SmartInsights from '../components/SmartInsights';
-import WeatherInsights from '../components/WeatherInsights';
 import XPProgress from '../components/XPProgress';
-import VoiceLogging from '../components/VoiceLogging';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
@@ -53,7 +50,6 @@ export default function HomeScreen({
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [smartTip, setSmartTip] = useState('💡 Start your day with a glass of water!');
-  const [showVoiceLogging, setShowVoiceLogging] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
   const confettiRef = useRef();
 
@@ -214,35 +210,7 @@ export default function HomeScreen({
               theme={theme}
             />
 
-            {/* XP Progress */}
-            <XPProgress 
-              userXP={userXP}
-              style={{ width: '90%' }}
-            />
-
-            {/* Weather Insights */}
-            <TouchableOpacity
-              onPress={() => setShowWeather((v) => !v)}
-              style={{
-                marginTop: 10,
-                backgroundColor: 'rgba(58, 190, 255, 0.15)',
-                padding: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: COLOR.skyBlue,
-                width: '90%',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ color: COLOR.skyBlue, fontWeight: '700' }}>
-                {showWeather ? 'Hide Weather Insights' : 'Show Weather Insights'}
-              </Text>
-            </TouchableOpacity>
-
-            {showWeather && (
-              <WeatherInsights userProfile={userProfile} theme={theme} style={{ width: '90%' }} />
-            )}
-
+            
             {/* Drink Options */}
             <Text style={{
               marginTop: 20,
@@ -272,30 +240,11 @@ export default function HomeScreen({
               ))}
             </View>
 
-            {/* Voice Logging Button */}
-            <TouchableOpacity
-              onPress={() => setShowVoiceLogging(true)}
-              style={{
-                marginTop: 15,
-                backgroundColor: 'rgba(111, 231, 221, 0.2)',
-                padding: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: COLOR.aquaMint,
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Voice logging for water intake"
-            >
-              <Text style={{ color: COLOR.aquaMint, fontWeight: '600', marginRight: 8 }}>
-                🎤 Voice Logging
-              </Text>
-              <Text style={{ color: COLOR.white, opacity: 0.8, fontSize: 12 }}>
-                +5 XP
-              </Text>
-            </TouchableOpacity>
+            {/* XP Progress */}
+            <XPProgress 
+              userXP={userXP}
+              style={{ width: '90%' }}
+            />
 
             {/* Reset Button */}
             <TouchableOpacity
@@ -315,11 +264,6 @@ export default function HomeScreen({
                 Reset Today
               </Text>
             </TouchableOpacity>
-            
-            {/* Smart Insights */}
-            {smartTip && (
-              <SmartInsights tip={smartTip} theme={theme} />
-            )}
 
             {/* Recent intake history */}
             {todayIntake.length > 0 && (
@@ -379,13 +323,6 @@ export default function HomeScreen({
           </ScrollView>
           <WaveBottom />
 
-          {/* Voice Logging Modal */}
-          <VoiceLogging
-            visible={showVoiceLogging}
-            onClose={() => setShowVoiceLogging(false)}
-            onAddDrink={handleAddDrink}
-            userProfile={userProfile}
-          />
         </SafeAreaView>
       </GradientBackground>
     </LoadingOverlay>

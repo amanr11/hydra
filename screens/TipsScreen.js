@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import WaveBottom from '../components/WaveBottom';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
 import * as Animatable from 'react-native-animatable';
@@ -241,8 +240,6 @@ export default function TipsScreen({ theme }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
-          
-          <WaveBottom />
         </View>
       </SafeAreaView>
     </GradientBackground>

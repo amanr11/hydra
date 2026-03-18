@@ -5,7 +5,6 @@ import HomeScreen from './screens/HomeScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TipsScreen from './screens/TipsScreen';
-import ChallengesScreen from './screens/ChallengesScreen';
 import { useColorScheme } from 'react-native';
 import { COLOR } from './components/Theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,16 +136,6 @@ export default function App() {
             }}
           >
             {() => <HistoryScreen dailyGoal={dailyGoal} theme={theme} />}
-          </Tab.Screen>
-
-          <Tab.Screen
-            name="Challenges"
-            options={{ 
-              tabBarIcon: ({color,size})=><Ionicons name="trophy-outline" color={color} size={size}/>,
-              tabBarAccessibilityLabel: 'Challenges - View challenges and achievements'
-            }}
-          >
-            {() => <ChallengesScreen streak={streak} theme={theme} userProfile={userProfile} />}
           </Tab.Screen>
 
           <Tab.Screen
