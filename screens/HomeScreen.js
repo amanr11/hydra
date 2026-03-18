@@ -54,6 +54,7 @@ export default function HomeScreen({
   const [showConfetti, setShowConfetti] = useState(false);
   const [smartTip, setSmartTip] = useState('💡 Start your day with a glass of water!');
   const [showVoiceLogging, setShowVoiceLogging] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
   const confettiRef = useRef();
 
   // Sync with parent state
@@ -73,9 +74,9 @@ export default function HomeScreen({
     }
   }, [total, dailyGoal, showConfetti]);
 
-  useEffect(() => {
-    setupSmartReminders();
-  }, [userProfile]);
+  // useEffect(() => {
+  //  setupSmartReminders();
+  // }, [userProfile]);'''
 
   const setupSmartReminders = async () => {
     try {
@@ -220,11 +221,27 @@ export default function HomeScreen({
             />
 
             {/* Weather Insights */}
-            <WeatherInsights
-              userProfile={userProfile}
-              theme={theme}
-              style={{ width: '90%' }}
-            />
+            <TouchableOpacity
+              onPress={() => setShowWeather((v) => !v)}
+              style={{
+                marginTop: 10,
+                backgroundColor: 'rgba(58, 190, 255, 0.15)',
+                padding: 12,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: COLOR.skyBlue,
+                width: '90%',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: COLOR.skyBlue, fontWeight: '700' }}>
+                {showWeather ? 'Hide Weather Insights' : 'Show Weather Insights'}
+              </Text>
+            </TouchableOpacity>
+
+            {showWeather && (
+              <WeatherInsights userProfile={userProfile} theme={theme} style={{ width: '90%' }} />
+            )}
 
             {/* Drink Options */}
             <Text style={{

@@ -116,7 +116,7 @@ const WeatherInsights = ({ userProfile, theme, style }) => {
       </TouchableOpacity>
 
       {weather && (
-        <View style={styles.weatherSummary}>
+        <View style={[styles.weatherSummary, { paddingBottom: expanded ? 10 : 15 }]}>
           <Text style={styles.weatherText}>
             {weather.temperature}°C • {weather.condition} • {weather.location}
           </Text>
@@ -218,7 +218,6 @@ const styles = {
   },
   weatherSummary: {
     paddingHorizontal: 15,
-    paddingBottom: expanded ? 10 : 15,
   },
   weatherText: {
     fontSize: 14,
