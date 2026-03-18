@@ -82,8 +82,9 @@ export const useHydration = (userProfile) => {
         setStreak(currentStreak);
         await StorageService.setStreak(currentStreak);
         
-        // Trigger streak notifications for milestones
-        if (currentStreak > 0 && currentStreak % 7 === 0) {
+        // Trigger streak notifications for key milestones
+        const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100];
+        if (currentStreak > 0 && STREAK_MILESTONES.includes(currentStreak)) {
           NotificationService.scheduleStreakNotification(currentStreak);
         }
       }

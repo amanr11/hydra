@@ -5,12 +5,13 @@ import WaveBottom from '../components/WaveBottom';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
 import * as Animatable from 'react-native-animatable';
-import { getFirestore, collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs } from 'firebase/firestore';
+import { db, isFirebaseConfigured } from '../firebase';
 
 export default function LeaderboardScreen({ theme, userId }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const db = getFirestore();
+  const [fetchError, setFetchError] = useState(null);
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
   useEffect(() => {
@@ -19,9 +20,12 @@ export default function LeaderboardScreen({ theme, userId }) {
 
   const fetchLeaderboard = async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
-      if (!db) {
-        throw new Error("Firestore not initialized. Please ensure Firebase is set up.");
+      if (!isFirebaseConfigured || !db) {
+        setFetchError('Leaderboard requires Firebase setup. Coming soon!');
+        setIsLoading(false);
+        return;
       }
       const q = query(collection(db, `artifacts/${appId}/public/data/leaderboard`));
       const querySnapshot = await getDocs(q);
@@ -35,6 +39,7 @@ export default function LeaderboardScreen({ theme, userId }) {
       setIsLoading(false);
     } catch (e) {
       console.error("Error fetching leaderboard: ", e);
+      setFetchError('Unable to load leaderboard right now. Please try again later.');
       setIsLoading(false);
     }
   };
@@ -53,18 +58,37 @@ export default function LeaderboardScreen({ theme, userId }) {
     return `#${rank}`;
   };
 
+  const renderEmptyState = () => {
+    const title = fetchError || 'No rankings yet!';
+    const subtitle = fetchError
+      ? 'Global rankings will be available soon. Keep tracking your hydration!'
+      : 'Be the first to appear on the leaderboard by logging your hydration daily!';
+
+    return (
+      <Animatable.View animation="fadeIn" style={styles.emptyContainer}>
+        <Text style={styles.emptyEmoji}>🏆</Text>
+        <Text style={styles.emptyTitle}>{title}</Text>
+        <Text style={styles.emptySubtitle}>{subtitle}</Text>
+      </Animatable.View>
+    );
+  };
+
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
         <View style={{ flex: 1, padding: 20 }}>
           <Text style={styles.header}>🌍 Global Leaderboard</Text>
-          <Animatable.View animation="fadeInUp" duration={800} style={styles.leaderboardCard}>
-            <Text style={styles.userRankText}>Your Rank: {getUserRank() || 'N/A'}</Text>
-          </Animatable.View>
+          {!fetchError && (
+            <Animatable.View animation="fadeInUp" duration={800} style={styles.leaderboardCard}>
+              <Text style={styles.userRankText}>Your Rank: {getUserRank() || 'N/A'}</Text>
+            </Animatable.View>
+          )}
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={COLOR.aquaMint} />
             </View>
+          ) : leaderboard.length === 0 ? (
+            renderEmptyState()
           ) : (
             <ScrollView style={styles.listContainer}>
               {leaderboard.map((user, index) => (
@@ -176,5 +200,32 @@ const styles = StyleSheet.create({
     color: COLOR.aquaMint,
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  emptyEmoji: {
+    fontSize: 60,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLOR.white,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: COLOR.white,
+    opacity: 0.8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

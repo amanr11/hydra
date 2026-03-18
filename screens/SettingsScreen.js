@@ -13,12 +13,15 @@ import { COLOR } from '../components/Theme';
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
 import StreakService from '../services/StreakService';
+import { calculateSmartGoal } from '../utils';
 
 // ---- helpers ----
 const ML_PER_OZ = 29.5735;
 const toOz = (ml) => Math.round(ml / ML_PER_OZ);
 const toMl = (oz) => Math.round(oz * ML_PER_OZ);
 
+const DEFAULT_WAKE_TIME = '07:00';
+const DEFAULT_SLEEP_TIME = '23:00';
 const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   if (!value || typeof value !== 'string') return fallback;
   const [hRaw, mRaw] = value.split(':');
@@ -34,19 +37,6 @@ const formatHHMM = (hour, minute) => {
   return `${hh}:${mm}`;
 };
 
-const recommendedGoalMl = (weightKg, activityLevel) => {
-  // Simple + explainable heuristic:
-  // base: 35ml/kg, add activity multiplier
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return 2000;
-
-  let multiplier = 1;
-  if (activityLevel === 'moderate') multiplier = 1.1;
-  if (activityLevel === 'high') multiplier = 1.2;
-
-  const base = weightKg * 35 * multiplier;
-  // round to nearest 50ml so it looks clean
-  return Math.max(500, Math.min(5000, Math.round(base / 50) * 50));
-};
 
 export default function SettingsScreen({
   dailyGoal,
@@ -70,8 +60,8 @@ export default function SettingsScreen({
   const [draftActivityLevel, setDraftActivityLevel] = useState(userProfile.activityLevel ?? 'moderate');
 
   // wake/sleep (stored in profile; used by smart reminders)
-  const [draftWakeTime, setDraftWakeTime] = useState(userProfile.wakeTime ?? '07:00');
-  const [draftSleepTime, setDraftSleepTime] = useState(userProfile.sleepTime ?? '23:00');
+  const [draftWakeTime, setDraftWakeTime] = useState(userProfile.wakeTime ?? DEFAULT_WAKE_TIME);
+  const [draftSleepTime, setDraftSleepTime] = useState(userProfile.sleepTime ?? DEFAULT_SLEEP_TIME);
 
   // goal editing
   const [tempGoal, setTempGoal] = useState(String(dailyGoal));
@@ -89,8 +79,8 @@ export default function SettingsScreen({
     setDraftName(userProfile.name ?? '');
     setDraftWeight(userProfile.weight?.toString?.() ?? '');
     setDraftActivityLevel(userProfile.activityLevel ?? 'moderate');
-    setDraftWakeTime(userProfile.wakeTime ?? '07:00');
-    setDraftSleepTime(userProfile.sleepTime ?? '23:00');
+    setDraftWakeTime(userProfile.wakeTime ?? DEFAULT_WAKE_TIME);
+    setDraftSleepTime(userProfile.sleepTime ?? DEFAULT_SLEEP_TIME);
   }, [userProfile]);
 
   useEffect(() => {
@@ -242,8 +232,8 @@ export default function SettingsScreen({
       normalize(draftName) !== normalize(userProfile.name) ||
       (draftWeight ?? '') !== (userProfile.weight?.toString?.() ?? '') ||
       (draftActivityLevel ?? 'moderate') !== (userProfile.activityLevel ?? 'moderate') ||
-      (draftWakeTime ?? '07:00') !== (userProfile.wakeTime ?? '07:00') ||
-      (draftSleepTime ?? '23:00') !== (userProfile.sleepTime ?? '23:00')
+      (draftWakeTime ?? DEFAULT_WAKE_TIME) !== (userProfile.wakeTime ?? DEFAULT_WAKE_TIME) ||
+      (draftSleepTime ?? DEFAULT_SLEEP_TIME) !== (userProfile.sleepTime ?? DEFAULT_SLEEP_TIME)
     );
   }, [draftActivityLevel, draftName, draftSleepTime, draftWakeTime, draftWeight, userProfile]);
 
@@ -320,9 +310,14 @@ export default function SettingsScreen({
     loadStreakStats();
   }, []);
 
-  // recommended goal
+  // recommended goal (considers weight, activity level, and wake/sleep times)
   const weightN = parseInt(draftWeight, 10);
-  const recGoalMl = recommendedGoalMl(Number.isFinite(weightN) ? weightN : userProfile.weight, draftActivityLevel);
+  const recGoalMl = calculateSmartGoal({
+    weight: Number.isFinite(weightN) && weightN > 0 ? weightN : userProfile.weight,
+    activityLevel: draftActivityLevel,
+    wakeTime: draftWakeTime || DEFAULT_WAKE_TIME,
+    sleepTime: draftSleepTime || DEFAULT_SLEEP_TIME,
+  });
   const units = settings?.units ?? 'ml';
   const recGoalDisplay = units === 'oz' ? `${toOz(recGoalMl)} oz` : `${recGoalMl} ml`;
   const dailyGoalDisplay = units === 'oz' ? `${toOz(dailyGoal)} oz` : `${dailyGoal} ml`;
@@ -479,8 +474,8 @@ export default function SettingsScreen({
                   setDraftName(userProfile.name ?? '');
                   setDraftWeight(userProfile.weight?.toString?.() ?? '');
                   setDraftActivityLevel(userProfile.activityLevel ?? 'moderate');
-                  setDraftWakeTime(userProfile.wakeTime ?? '07:00');
-                  setDraftSleepTime(userProfile.sleepTime ?? '23:00');
+                  setDraftWakeTime(userProfile.wakeTime ?? DEFAULT_WAKE_TIME);
+                  setDraftSleepTime(userProfile.sleepTime ?? DEFAULT_SLEEP_TIME);
                 }}
                 disabled={!profileDirty}
                 style={[

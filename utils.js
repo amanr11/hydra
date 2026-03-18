@@ -22,7 +22,28 @@ export const calculateSmartGoal = (userProfile) => {
 };
 
 export const getSmartTip = async (userProfile) => {
+  const FALLBACK_TIPS = [
+    "💡 Drink water throughout the day, not just when you're thirsty!",
+    "💧 Start your morning with a glass of water to kickstart your metabolism.",
+    "🌿 Eating water-rich foods like cucumbers and watermelon counts toward your hydration!",
+    "🏃 Increase your water intake on days you exercise — aim for an extra 500ml.",
+    "🌡️ Hot weather increases your hydration needs. Add an extra glass on warm days.",
+    "☕ Caffeinated drinks have a mild diuretic effect — balance them with extra water.",
+    "🌙 Drink a glass of water before bed to replenish overnight water loss.",
+    "🥤 Carrying a reusable water bottle makes it much easier to stay hydrated.",
+  ];
+
   try {
+    // Set your Gemini API key here to enable AI-generated tips.
+    // Get a key at: https://aistudio.google.com/app/apikey
+    // IMPORTANT: Do not commit a real API key to version control.
+    // Consider storing it in app.config.js extra fields or a .env file (gitignored).
+    const apiKey = "";
+    if (!apiKey) {
+      // No API key configured — return a randomized fallback tip
+      return FALLBACK_TIPS[Math.floor(Math.random() * FALLBACK_TIPS.length)];
+    }
+
     const systemPrompt = "You are a friendly and knowledgeable AI assistant for a hydration tracking app. Provide a single, concise, and engaging hydration tip, tailored to the user's profile. Use emojis where appropriate. Start the tip with a relevant emoji. Do not use quotes, just the tip itself. The tip should be one to two sentences max.";
     const userQuery = `Generate a hydration tip for a user with the following profile:
     - Name: ${userProfile.name}
@@ -36,7 +57,6 @@ export const getSmartTip = async (userProfile) => {
       },
     };
 
-    const apiKey = "";
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
     const response = await fetch(apiUrl, {
@@ -52,10 +72,10 @@ export const getSmartTip = async (userProfile) => {
       return candidate.content.parts[0].text;
     } else {
       console.log('Failed to fetch tip:', result);
-      return "💡 Drink water throughout the day, not just when you're thirsty!";
+      return FALLBACK_TIPS[Math.floor(Math.random() * FALLBACK_TIPS.length)];
     }
   } catch (error) {
     console.error('Error fetching AI tip:', error);
-    return "💡 Keep a reusable water bottle handy to stay hydrated all day!";
+    return FALLBACK_TIPS[Math.floor(Math.random() * FALLBACK_TIPS.length)];
   }
 };

@@ -38,13 +38,8 @@ const getOptionColor = (category) => {
 
 export default function HomeScreen({
   dailyGoal,
-  total: parentTotal,
-  setTotal: setParentTotal,
-  streak: parentStreak,
-  setStreak: setParentStreak,
   theme,
   userProfile,
-  setUserProfile,
 }) {
   const { total, todayIntake, streak, userXP, loading, error, addDrink, resetDay } = useHydration(userProfile);
 
@@ -65,15 +60,6 @@ export default function HomeScreen({
     };
     loadUnits();
   }, []);
-
-  // Sync with parent state
-  useEffect(() => {
-    setParentTotal(total);
-  }, [total, setParentTotal]);
-
-  useEffect(() => {
-    setParentStreak(streak);
-  }, [streak, setParentStreak]);
 
   const showAchievementAlert = useCallback(() => {
     const goalText = units === 'oz' ? `${mlToOz(dailyGoal)}oz` : `${dailyGoal}ml`;
@@ -291,11 +277,6 @@ export default function HomeScreen({
 
 HomeScreen.propTypes = {
   dailyGoal: PropTypes.number.isRequired,
-  total: PropTypes.number.isRequired,
-  setTotal: PropTypes.func.isRequired,
-  streak: PropTypes.number.isRequired,
-  setStreak: PropTypes.func.isRequired,
   theme: PropTypes.object.isRequired,
   userProfile: PropTypes.object.isRequired,
-  setUserProfile: PropTypes.func.isRequired,
 };

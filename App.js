@@ -18,9 +18,7 @@ const Tab = createBottomTabNavigator();
 export default function App() {
   const colorScheme = useColorScheme();
   const [darkMode, setDarkMode] = useState(colorScheme === 'dark');
-  const [streak, setStreak] = useState(0);
   const [dailyGoal, setDailyGoal] = useState(2000);
-  const [total, setTotal] = useState(0);
   const [userProfile, setUserProfile] = useState({
     name: 'Hydration Hero',
     weight: 70,
@@ -45,14 +43,12 @@ export default function App() {
       setLoading(true);
       setError(null);
       
-      const [savedProfile, savedStreak, savedGoal] = await Promise.all([
+      const [savedProfile, savedGoal] = await Promise.all([
         StorageService.getUserProfile(),
-        StorageService.getStreak(),
         StorageService.getDailyGoal()
       ]);
       
       if (savedProfile) setUserProfile(savedProfile);
-      setStreak(savedStreak);
       setDailyGoal(savedGoal);
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -117,13 +113,8 @@ export default function App() {
             {() => (
               <HomeScreen
                 dailyGoal={dailyGoal}
-                total={total}
-                setTotal={setTotal}
-                streak={streak}
-                setStreak={setStreak}
                 theme={theme}
                 userProfile={userProfile}
-                setUserProfile={setUserProfile}
               />
             )}
           </Tab.Screen>
