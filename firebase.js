@@ -16,10 +16,21 @@ const firebaseConfig = {
     appId: "YOUR_APP_ID"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Check if Firebase has real credentials configured
+const isFirebaseConfigured = !Object.values(firebaseConfig).some(v =>
+  typeof v === 'string' && v.startsWith('YOUR_')
+);
+
+let app = null;
+let auth = null;
+let db = null;
+
+if (isFirebaseConfigured) {
+  // Initialize Firebase only when real credentials are present
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
 
 // Export the initialized services so you can use them anywhere in your app
-export { app, auth, db };
+export { app, auth, db, isFirebaseConfigured };
