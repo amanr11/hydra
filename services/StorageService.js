@@ -27,7 +27,7 @@ class StorageService {
   static async getDailyGoal() {
     try {
       const goal = await AsyncStorage.getItem('dailyGoal');
-      return goal ? parseInt(goal) : 2000;
+      return goal ? parseInt(goal, 10) : 2000;
     } catch (error) {
       console.error('Error getting daily goal:', error);
       return 2000;
@@ -48,7 +48,7 @@ class StorageService {
   static async getStreak() {
     try {
       const streak = await AsyncStorage.getItem('currentStreak');
-      return streak ? parseInt(streak) : 0;
+      return streak ? parseInt(streak, 10) : 0;
     } catch (error) {
       console.error('Error getting streak:', error);
       return 0;
@@ -90,7 +90,7 @@ class StorageService {
   static async getDailyTotal(date) {
     try {
       const total = await AsyncStorage.getItem(date);
-      return total ? parseInt(total) : 0;
+      return total ? parseInt(total, 10) : 0;
     } catch (error) {
       console.error('Error getting daily total:', error);
       return 0;
@@ -132,7 +132,7 @@ class StorageService {
   static async getXP() {
     try {
       const xp = await AsyncStorage.getItem('userXP');
-      return xp ? parseInt(xp) : 0;
+      return xp ? parseInt(xp, 10) : 0;
     } catch (error) {
       console.error('Error getting XP:', error);
       return 0;
@@ -173,21 +173,21 @@ class StorageService {
   static async getSettings() {
     try {
       const settings = await AsyncStorage.getItem('appSettings');
-      return settings ? JSON.parse(settings) : {
-        notificationsEnabled: true,
-        reminderFrequency: 'smart',
-        customReminders: [],
-        largeFontMode: false,
-        highContrastMode: false,
-      };
+      return settings
+        ? JSON.parse(settings)
+        : {
+            notificationsEnabled: true,
+            reminderFrequency: 'smart',
+            customReminders: [],
+            units: 'ml',
+          };
     } catch (error) {
       console.error('Error getting settings:', error);
       return {
         notificationsEnabled: true,
         reminderFrequency: 'smart',
         customReminders: [],
-        largeFontMode: false,
-        highContrastMode: false,
+        units: 'ml',
       };
     }
   }
@@ -198,6 +198,27 @@ class StorageService {
       return true;
     } catch (error) {
       console.error('Error setting settings:', error);
+      return false;
+    }
+  }
+
+  // Smart reminder IDs (NEW)
+  static async getSmartReminderIds() {
+    try {
+      const raw = await AsyncStorage.getItem('smartReminderIds');
+      return raw ? JSON.parse(raw) : [];
+    } catch (error) {
+      console.error('Error getting smart reminder ids:', error);
+      return [];
+    }
+  }
+
+  static async setSmartReminderIds(ids) {
+    try {
+      await AsyncStorage.setItem('smartReminderIds', JSON.stringify(ids || []));
+      return true;
+    } catch (error) {
+      console.error('Error setting smart reminder ids:', error);
       return false;
     }
   }
@@ -227,9 +248,16 @@ class StorageService {
   static async clearAllData() {
     try {
       const keys = [
-        'userProfile', 'dailyGoal', 'currentStreak', 'history',
-        'userXP', 'unlockedThemes', 'appSettings', 'streakSafeguardUsed',
-        'completedAchievements'
+        'userProfile',
+        'dailyGoal',
+        'currentStreak',
+        'history',
+        'userXP',
+        'unlockedThemes',
+        'appSettings',
+        'streakSafeguardUsed',
+        'completedAchievements',
+        'smartReminderIds', // NEW
       ];
       await AsyncStorage.multiRemove(keys);
       return true;

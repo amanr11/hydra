@@ -16,7 +16,7 @@ const CustomReminders = ({ visible, onClose }) => {
     message: '',
     time: new Date(),
     enabled: true,
-    days: [1, 1, 1, 1, 1, 1, 1] // Mon-Sun
+    days: [1, 1, 1, 1, 1, 1, 1], // Mon-Sun
   });
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,15 +44,23 @@ const CustomReminders = ({ visible, onClose }) => {
   const saveReminders = async (updatedReminders) => {
     try {
       const settings = await StorageService.getSettings();
+
+      const { scheduledIdsByReminder } = await NotificationService.scheduleCustomReminders(updatedReminders);
+
+      const remindersWithIds = updatedReminders.map((r) => ({
+        ...r,
+        days: Array.isArray(r.days) ? r.days : [1, 1, 1, 1, 1, 1, 1],
+        scheduledIds: scheduledIdsByReminder?.[r.id] ?? r.scheduledIds ?? [],
+      }));
+
       const newSettings = {
         ...settings,
-        customReminders: updatedReminders
+        customReminders: remindersWithIds,
       };
+
       await StorageService.setSettings(newSettings);
-      
-      // Reschedule notifications
-      await NotificationService.scheduleCustomReminders(updatedReminders);
-      
+      setReminders(remindersWithIds);
+
       return true;
     } catch (error) {
       console.error('Error saving reminders:', error);
@@ -66,6 +74,12 @@ const CustomReminders = ({ visible, onClose }) => {
       return;
     }
 
+    // Require at least one day
+    if (!newReminder.days.some((d) => d === 1)) {
+      Alert.alert('No Days Selected', 'Please select at least one day.');
+      return;
+    }
+
     const reminder = {
       id: Date.now().toString(),
       title: newReminder.title.trim(),
@@ -74,13 +88,13 @@ const CustomReminders = ({ visible, onClose }) => {
       minute: newReminder.time.getMinutes(),
       enabled: newReminder.enabled,
       days: [...newReminder.days],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      scheduledIds: [],
     };
 
     const updatedReminders = [...reminders, reminder];
-    setReminders(updatedReminders);
-    
     const success = await saveReminders(updatedReminders);
+
     if (success) {
       setShowAddForm(false);
       setNewReminder({
@@ -88,7 +102,7 @@ const CustomReminders = ({ visible, onClose }) => {
         message: '',
         time: new Date(),
         enabled: true,
-        days: [1, 1, 1, 1, 1, 1, 1]
+        days: [1, 1, 1, 1, 1, 1, 1],
       });
       Alert.alert('Reminder Added', 'Your custom reminder has been created!');
     } else {
@@ -97,30 +111,24 @@ const CustomReminders = ({ visible, onClose }) => {
   };
 
   const toggleReminder = async (id, enabled) => {
-    const updatedReminders = reminders.map(reminder =>
-      reminder.id === id ? { ...reminder, enabled } : reminder
-    );
+    const updatedReminders = reminders.map((reminder) => (reminder.id === id ? { ...reminder, enabled } : reminder));
     setReminders(updatedReminders);
     await saveReminders(updatedReminders);
   };
 
   const deleteReminder = (id) => {
-    Alert.alert(
-      'Delete Reminder',
-      'Are you sure you want to delete this reminder?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const updatedReminders = reminders.filter(reminder => reminder.id !== id);
-            setReminders(updatedReminders);
-            await saveReminders(updatedReminders);
-          }
-        }
-      ]
-    );
+    Alert.alert('Delete Reminder', 'Are you sure you want to delete this reminder?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const updatedReminders = reminders.filter((reminder) => reminder.id !== id);
+          setReminders(updatedReminders);
+          await saveReminders(updatedReminders);
+        },
+      },
+    ]);
   };
 
   const formatTime = (hour, minute) => {
@@ -130,11 +138,11 @@ const CustomReminders = ({ visible, onClose }) => {
   };
 
   const getDaysText = (days) => {
-    if (days.every(day => day === 1)) return 'Every day';
-    if (days.slice(0, 5).every(day => day === 1) && days.slice(5).every(day => day === 0)) return 'Weekdays';
-    if (days.slice(0, 5).every(day => day === 0) && days.slice(5).every(day => day === 1)) return 'Weekends';
-    
-    const activeDays = days.map((active, index) => active ? dayNames[index] : null).filter(Boolean);
+    if (days.every((day) => day === 1)) return 'Every day';
+    if (days.slice(0, 5).every((day) => day === 1) && days.slice(5).every((day) => day === 0)) return 'Weekdays';
+    if (days.slice(0, 5).every((day) => day === 0) && days.slice(5).every((day) => day === 1)) return 'Weekends';
+
+    const activeDays = days.map((active, index) => (active ? dayNames[index] : null)).filter(Boolean);
     return activeDays.join(', ');
   };
 
@@ -146,24 +154,13 @@ const CustomReminders = ({ visible, onClose }) => {
 
   const onTimeChange = (event, selectedTime) => {
     setShowTimePicker(false);
-    if (selectedTime) {
-      setNewReminder({ ...newReminder, time: selectedTime });
-    }
+    if (selectedTime) setNewReminder({ ...newReminder, time: selectedTime });
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <Animatable.View 
-          animation="slideInUp"
-          duration={300}
-          style={styles.modal}
-        >
+        <Animatable.View animation="slideInUp" duration={300} style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>🔔 Custom Reminders</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -189,25 +186,14 @@ const CustomReminders = ({ visible, onClose }) => {
                               value={reminder.enabled}
                               onValueChange={(enabled) => toggleReminder(reminder.id, enabled)}
                               trackColor={{ false: 'rgba(255,255,255,0.3)', true: COLOR.skyBlue }}
-                              thumbColor={reminder.enabled ? COLOR.white : COLOR.white}
+                              thumbColor={COLOR.white}
                             />
                           </View>
-                          <Text style={styles.reminderTime}>
-                            🕐 {formatTime(reminder.hour, reminder.minute)}
-                          </Text>
-                          <Text style={styles.reminderDays}>
-                            📅 {getDaysText(reminder.days)}
-                          </Text>
-                          {reminder.message && (
-                            <Text style={styles.reminderMessage}>
-                              💬 {reminder.message}
-                            </Text>
-                          )}
+                          <Text style={styles.reminderTime}>🕐 {formatTime(reminder.hour, reminder.minute)}</Text>
+                          <Text style={styles.reminderDays}>📅 {getDaysText(reminder.days || [])}</Text>
+                          {reminder.message ? <Text style={styles.reminderMessage}>💬 {reminder.message}</Text> : null}
                         </View>
-                        <TouchableOpacity
-                          onPress={() => deleteReminder(reminder.id)}
-                          style={styles.deleteButton}
-                        >
+                        <TouchableOpacity onPress={() => deleteReminder(reminder.id)} style={styles.deleteButton}>
                           <Text style={styles.deleteText}>🗑️</Text>
                         </TouchableOpacity>
                       </View>
@@ -223,16 +209,13 @@ const CustomReminders = ({ visible, onClose }) => {
                 )}
 
                 {!showAddForm ? (
-                  <TouchableOpacity
-                    onPress={() => setShowAddForm(true)}
-                    style={styles.addButton}
-                  >
+                  <TouchableOpacity onPress={() => setShowAddForm(true)} style={styles.addButton}>
                     <Text style={styles.addButtonText}>+ Add New Reminder</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.addForm}>
                     <Text style={styles.formTitle}>✨ New Reminder</Text>
-                    
+
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Title *</Text>
                       <TextInput
@@ -260,10 +243,7 @@ const CustomReminders = ({ visible, onClose }) => {
 
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Time</Text>
-                      <TouchableOpacity
-                        onPress={() => setShowTimePicker(true)}
-                        style={styles.timeButton}
-                      >
+                      <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.timeButton}>
                         <Text style={styles.timeButtonText}>
                           🕐 {formatTime(newReminder.time.getHours(), newReminder.time.getMinutes())}
                         </Text>
@@ -277,15 +257,9 @@ const CustomReminders = ({ visible, onClose }) => {
                           <TouchableOpacity
                             key={index}
                             onPress={() => toggleDay(index)}
-                            style={[
-                              styles.dayButton,
-                              newReminder.days[index] === 1 && styles.dayButtonActive
-                            ]}
+                            style={[styles.dayButton, newReminder.days[index] === 1 && styles.dayButtonActive]}
                           >
-                            <Text style={[
-                              styles.dayButtonText,
-                              newReminder.days[index] === 1 && styles.dayButtonTextActive
-                            ]}>
+                            <Text style={[styles.dayButtonText, newReminder.days[index] === 1 && styles.dayButtonTextActive]}>
                               {day}
                             </Text>
                           </TouchableOpacity>
@@ -294,16 +268,10 @@ const CustomReminders = ({ visible, onClose }) => {
                     </View>
 
                     <View style={styles.formActions}>
-                      <TouchableOpacity
-                        onPress={() => setShowAddForm(false)}
-                        style={styles.cancelButton}
-                      >
+                      <TouchableOpacity onPress={() => setShowAddForm(false)} style={styles.cancelButton}>
                         <Text style={styles.cancelButtonText}>Cancel</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={addReminder}
-                        style={styles.saveButton}
-                      >
+                      <TouchableOpacity onPress={addReminder} style={styles.saveButton}>
                         <Text style={styles.saveButtonText}>Save Reminder</Text>
                       </TouchableOpacity>
                     </View>
@@ -314,12 +282,7 @@ const CustomReminders = ({ visible, onClose }) => {
           </ScrollView>
 
           {showTimePicker && (
-            <DateTimePicker
-              value={newReminder.time}
-              mode="time"
-              display="default"
-              onChange={onTimeChange}
-            />
+            <DateTimePicker value={newReminder.time} mode="time" display="default" onChange={onTimeChange} />
           )}
         </Animatable.View>
       </View>
@@ -327,6 +290,7 @@ const CustomReminders = ({ visible, onClose }) => {
   );
 };
 
+// keep your existing styles object unchanged
 const styles = {
   overlay: {
     flex: 1,
@@ -351,28 +315,12 @@ const styles = {
     fontWeight: 'bold',
     color: COLOR.white,
   },
-  closeButton: {
-    padding: 5,
-  },
-  closeText: {
-    fontSize: 24,
-    color: COLOR.white,
-    opacity: 0.7,
-  },
-  content: {
-    maxHeight: 600,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: COLOR.white,
-    fontSize: 16,
-  },
-  remindersList: {
-    marginBottom: 20,
-  },
+  closeButton: { padding: 5 },
+  closeText: { fontSize: 24, color: COLOR.white, opacity: 0.7 },
+  content: { maxHeight: 600 },
+  loadingContainer: { padding: 40, alignItems: 'center' },
+  loadingText: { color: COLOR.white, fontSize: 16 },
+  remindersList: { marginBottom: 20 },
   reminderItem: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 15,
@@ -381,9 +329,7 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  reminderInfo: {
-    flex: 1,
-  },
+  reminderInfo: { flex: 1 },
   reminderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -397,80 +343,20 @@ const styles = {
     flex: 1,
     marginRight: 10,
   },
-  reminderTime: {
-    fontSize: 14,
-    color: COLOR.aquaMint,
-    marginBottom: 4,
-  },
-  reminderDays: {
-    fontSize: 12,
-    color: COLOR.white,
-    opacity: 0.8,
-    marginBottom: 4,
-  },
-  reminderMessage: {
-    fontSize: 12,
-    color: COLOR.white,
-    opacity: 0.7,
-    fontStyle: 'italic',
-  },
-  deleteButton: {
-    padding: 10,
-  },
-  deleteText: {
-    fontSize: 20,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLOR.aquaMint,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: COLOR.white,
-    opacity: 0.8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  addButton: {
-    backgroundColor: COLOR.skyBlue,
-    borderRadius: 12,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  addButtonText: {
-    color: COLOR.white,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  addForm: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 15,
-    padding: 20,
-    marginTop: 10,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLOR.aquaMint,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLOR.white,
-    marginBottom: 8,
-  },
+  reminderTime: { fontSize: 14, color: COLOR.aquaMint, marginBottom: 4 },
+  reminderDays: { fontSize: 12, color: COLOR.white, opacity: 0.8, marginBottom: 4 },
+  reminderMessage: { fontSize: 12, color: COLOR.white, opacity: 0.7, fontStyle: 'italic' },
+  deleteButton: { padding: 10 },
+  deleteText: { fontSize: 20 },
+  emptyContainer: { alignItems: 'center', padding: 40 },
+  emptyText: { fontSize: 18, fontWeight: '600', color: COLOR.aquaMint, marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: COLOR.white, opacity: 0.8, textAlign: 'center', lineHeight: 20 },
+  addButton: { backgroundColor: COLOR.skyBlue, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 10 },
+  addButtonText: { color: COLOR.white, fontWeight: '600', fontSize: 16 },
+  addForm: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 15, padding: 20, marginTop: 10 },
+  formTitle: { fontSize: 20, fontWeight: '600', color: COLOR.aquaMint, marginBottom: 20, textAlign: 'center' },
+  inputGroup: { marginBottom: 20 },
+  inputLabel: { fontSize: 14, fontWeight: '600', color: COLOR.white, marginBottom: 8 },
   textInput: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 10,
@@ -487,14 +373,8 @@ const styles = {
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  timeButtonText: {
-    color: COLOR.white,
-    fontSize: 16,
-  },
-  daysContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  timeButtonText: { color: COLOR.white, fontSize: 16 },
+  daysContainer: { flexDirection: 'row', justifyContent: 'space-between' },
   dayButton: {
     width: 40,
     height: 40,
@@ -505,23 +385,10 @@ const styles = {
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  dayButtonActive: {
-    backgroundColor: COLOR.skyBlue,
-    borderColor: COLOR.skyBlue,
-  },
-  dayButtonText: {
-    color: COLOR.white,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  dayButtonTextActive: {
-    color: COLOR.white,
-  },
-  formActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
+  dayButtonActive: { backgroundColor: COLOR.skyBlue, borderColor: COLOR.skyBlue },
+  dayButtonText: { color: COLOR.white, fontSize: 12, fontWeight: '600' },
+  dayButtonTextActive: { color: COLOR.white },
+  formActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   cancelButton: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 10,
@@ -530,11 +397,7 @@ const styles = {
     flex: 1,
     marginRight: 10,
   },
-  cancelButtonText: {
-    color: COLOR.white,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  cancelButtonText: { color: COLOR.white, fontWeight: '600', textAlign: 'center' },
   saveButton: {
     backgroundColor: COLOR.skyBlue,
     borderRadius: 10,
@@ -543,11 +406,7 @@ const styles = {
     flex: 1,
     marginLeft: 10,
   },
-  saveButtonText: {
-    color: COLOR.white,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  saveButtonText: { color: COLOR.white, fontWeight: '600', textAlign: 'center' },
 };
 
 CustomReminders.propTypes = {

@@ -4,7 +4,12 @@ import PropTypes from 'prop-types';
 import * as Animatable from 'react-native-animatable';
 import { COLOR } from './Theme';
 
-export default function DrinkButton({ option, onPress, color, enhanced = false }) {
+const ML_PER_OZ = 29.5735;
+const mlToOz = (ml) => Math.round(ml / ML_PER_OZ);
+
+export default function DrinkButton({ option, onPress, color, enhanced = false, units = 'ml' }) {
+  const amountText = units === 'oz' ? `${mlToOz(option.ml)}oz` : `${option.ml}ml`;
+
   return (
     <Animatable.View animation="bounceIn" duration={600} style={{ margin: 6 }}>
       <TouchableOpacity
@@ -12,16 +17,18 @@ export default function DrinkButton({ option, onPress, color, enhanced = false }
         style={[
           styles.button,
           { backgroundColor: color ?? COLOR.skyBlue },
-          enhanced && styles.enhancedButton
+          enhanced && styles.enhancedButton,
         ]}
       >
         <Text style={styles.emoji}>{option.emoji}</Text>
         <Text style={styles.label}>{option.label}</Text>
-        <Text style={styles.amount}>{option.ml}ml</Text>
+        <Text style={styles.amount}>{amountText}</Text>
+
         {enhanced && option.hydrationValue !== 1.0 && (
           <View style={styles.hydrationBadge}>
             <Text style={styles.hydrationText}>
-              {option.hydrationValue > 1 ? '+' : ''}{Math.round((option.hydrationValue - 1) * 100)}%
+              {option.hydrationValue > 1 ? '+' : ''}
+              {Math.round((option.hydrationValue - 1) * 100)}%
             </Text>
           </View>
         )}
@@ -83,9 +90,10 @@ DrinkButton.propTypes = {
     ml: PropTypes.number.isRequired,
     emoji: PropTypes.string.isRequired,
     hydrationValue: PropTypes.number,
-    category: PropTypes.string
+    category: PropTypes.string,
   }).isRequired,
   onPress: PropTypes.func.isRequired,
   color: PropTypes.string,
-  enhanced: PropTypes.bool
+  enhanced: PropTypes.bool,
+  units: PropTypes.oneOf(['ml', 'oz']),
 };

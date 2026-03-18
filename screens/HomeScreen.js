@@ -1,21 +1,25 @@
-// screens/HomeScreen.js - Enhanced with smart features
-import React, { useEffect, useRef, useState } from 'react';
+// screens/HomeScreen.js
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import PropTypes from 'prop-types';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Animatable from 'react-native-animatable';
+
 import GradientBackground from '../components/GradientBackground';
 import DropProgress from '../components/DropProgress';
 import DrinkButton from '../components/DrinkButton';
-import WaveBottom from '../components/WaveBottom';
 import QuickStats from '../components/QuickStats';
 import XPProgress from '../components/XPProgress';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
+
 import { useHydration } from '../hooks/useHydration';
-import NotificationService from '../services/NotificationService';
-import * as Animatable from 'react-native-animatable';
+import StorageService from '../services/StorageService';
+
+const ML_PER_OZ = 29.5735;
+const mlToOz = (ml) => Math.round(ml / ML_PER_OZ);
 
 const enhancedDrinkOptions = [
   { label: 'Small cup', ml: 150, emoji: '🥤', hydrationValue: 1.0, category: 'water' },
@@ -26,6 +30,12 @@ const enhancedDrinkOptions = [
   { label: 'Sports drink', ml: 350, emoji: '🥤', hydrationValue: 1.1, category: 'sports' },
 ];
 
+const getOptionColor = (category) => {
+  if (category === 'water') return COLOR.skyBlue;
+  if (category === 'sports') return COLOR.amber;
+  return COLOR.coral;
+};
+
 export default function HomeScreen({
   dailyGoal,
   total: parentTotal,
@@ -34,24 +44,27 @@ export default function HomeScreen({
   setStreak: setParentStreak,
   theme,
   userProfile,
-  setUserProfile
+  setUserProfile,
 }) {
-  const {
-    total,
-    history,
-    todayIntake,
-    streak,
-    userXP,
-    loading,
-    error,
-    addDrink,
-    resetDay
-  } = useHydration(userProfile);
+  const { total, todayIntake, streak, userXP, loading, error, addDrink, resetDay } = useHydration(userProfile);
 
   const [showConfetti, setShowConfetti] = useState(false);
-  const [smartTip, setSmartTip] = useState('💡 Start your day with a glass of water!');
-  const [showWeather, setShowWeather] = useState(false);
-  const confettiRef = useRef();
+  const confettiRef = useRef(null);
+
+  const [units, setUnits] = useState('ml');
+
+  useEffect(() => {
+    const loadUnits = async () => {
+      try {
+        const settings = await StorageService.getSettings();
+        setUnits(settings?.units === 'oz' ? 'oz' : 'ml');
+      } catch (e) {
+        console.error('Error loading units:', e);
+        setUnits('ml');
+      }
+    };
+    loadUnits();
+  }, []);
 
   // Sync with parent state
   useEffect(() => {
@@ -62,85 +75,70 @@ export default function HomeScreen({
     setParentStreak(streak);
   }, [streak, setParentStreak]);
 
+  const showAchievementAlert = useCallback(() => {
+    const goalText = units === 'oz' ? `${mlToOz(dailyGoal)}oz` : `${dailyGoal}ml`;
+    Alert.alert('Goal Achieved! 🎉', `Congratulations! You've reached your daily goal of ${goalText}!`, [{ text: 'Awesome!' }]);
+  }, [dailyGoal, units]);
+
   useEffect(() => {
     if (total >= dailyGoal && confettiRef.current && !showConfetti) {
       setShowConfetti(true);
       confettiRef.current.start();
       showAchievementAlert();
     }
-  }, [total, dailyGoal, showConfetti]);
+  }, [total, dailyGoal, showConfetti, showAchievementAlert]);
 
-  // useEffect(() => {
-  //  setupSmartReminders();
-  // }, [userProfile]);'''
+  const percent = useMemo(() => Math.min(total / dailyGoal, 1), [total, dailyGoal]);
 
-  const setupSmartReminders = async () => {
-    try {
-      await NotificationService.scheduleSmartReminders(userProfile);
-    } catch (error) {
-      console.error('Error setting up reminders:', error);
-    }
-  };
+  const handleAddDrink = useCallback(
+    async (option) => {
+      try {
+        const result = await addDrink(option);
 
-  const handleAddDrink = async (option) => {
-    try {
-      const result = await addDrink(option);
-      
-      if (result.success) {
-        // Show encouraging messages based on progress
-        const percentage = (result.newTotal / dailyGoal) * 100;
-        
-        if (percentage >= 100 && total < dailyGoal) {
-          // Goal just completed
-        } else if (percentage >= 50 && percentage < 75 && total < dailyGoal * 0.5) {
-          Alert.alert('Great Progress!', '🎉 You\'re halfway to your goal!');
-        } else if (result.xpGained > 0) {
-          // Show XP gain for significant amounts
-          if (result.xpGained >= 25) {
-            Alert.alert('XP Gained!', `🌟 +${result.xpGained} experience points!`);
-          }
+        if (!result?.success) {
+          Alert.alert('Error', 'Failed to add drink. Please try again.');
+          return;
         }
-      } else {
-        Alert.alert('Error', 'Failed to add drink. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error adding drink:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    }
-  };
 
-  const handleResetDay = async () => {
-    Alert.alert(
-      'Reset Today',
-      'Are you sure you want to reset today\'s progress? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
+        const percentage = (result.newTotal / dailyGoal) * 100;
+
+        // Keep alerts minimal (avoid spamming every tap)
+        if (percentage >= 50 && percentage < 75 && total < dailyGoal * 0.5) {
+          Alert.alert('Great Progress!', "🎉 You're halfway to your goal!");
+        } else if (result.xpGained >= 25) {
+          Alert.alert('XP Gained!', `🌟 +${result.xpGained} experience points!`);
+        }
+      } catch (e) {
+        console.error('Error adding drink:', e);
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+      }
+    },
+    [addDrink, dailyGoal, total]
+  );
+
+  const handleResetDay = useCallback(() => {
+    Alert.alert("Reset Today", "Are you sure you want to reset today's progress? This cannot be undone.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reset',
+        style: 'destructive',
+        onPress: async () => {
+          try {
             const success = await resetDay();
             if (success) {
-              Alert.alert('Reset Complete', 'Today\'s progress has been reset.');
+              Alert.alert('Reset Complete', "Today's progress has been reset.");
               setShowConfetti(false);
             } else {
               Alert.alert('Error', 'Failed to reset. Please try again.');
             }
+          } catch (e) {
+            console.error('Error resetting day:', e);
+            Alert.alert('Error', 'Failed to reset. Please try again.');
           }
-        }
-      ]
-    );
-  };
-
-  const showAchievementAlert = () => {
-    Alert.alert(
-      'Goal Achieved! 🎉',
-      `Congratulations! You've reached your daily goal of ${dailyGoal}ml!`,
-      [{ text: 'Awesome!' }]
-    );
-  };
-
-  const percent = Math.min(total / dailyGoal, 1);
+        },
+      },
+    ]);
+  }, [resetDay]);
 
   if (error) {
     return (
@@ -149,102 +147,78 @@ export default function HomeScreen({
       </ErrorBoundary>
     );
   }
+
+  const totalText = units === 'oz' ? `${mlToOz(total || 0)} oz` : `${total || 0} ml`;
+  const goalSubtitle = units === 'oz' ? `${mlToOz(dailyGoal)} goal` : `${dailyGoal} goal`;
+
   return (
     <LoadingOverlay visible={loading} message="Loading hydration data...">
       <GradientBackground>
         <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView 
-            contentContainerStyle={{ alignItems: 'center', paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Confetti for goal achievement */}
-            <ConfettiCannon
-              ref={confettiRef}
-              count={200}
-              origin={{ x: -10, y: 0 }}
-              autoStart={false}
-              fadeOut={true}
-            />
+          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+            <ConfettiCannon ref={confettiRef} count={200} origin={{ x: -10, y: 0 }} autoStart={false} fadeOut />
 
             {/* Header */}
-            <Text style={{
-              fontSize: 50,
-              fontWeight: '900',
-              color: COLOR.white,
-              marginTop: 20,
-              textShadowColor: 'rgba(0, 0, 0, 0.8)',
-              textShadowOffset: { width: -3, height: 3 },
-              textShadowRadius: 6,
-            }}>
+            <Text
+              style={{
+                fontSize: 50,
+                fontWeight: '900',
+                color: COLOR.white,
+                marginTop: 20,
+                textShadowColor: 'rgba(0, 0, 0, 0.8)',
+                textShadowOffset: { width: -3, height: 3 },
+                textShadowRadius: 6,
+              }}
+            >
               hydra
             </Text>
 
-            <Text style={{
-              fontSize: 18,
-              color: COLOR.white,
-              opacity: 0.8,
-              marginBottom: 20,
-              fontWeight: '500',
-            }}>
+            <Text style={{ fontSize: 18, color: COLOR.white, opacity: 0.8, marginBottom: 20, fontWeight: '500' }}>
               Hello, {userProfile.name}! 👋
             </Text>
 
-            {/* Main Progress Drop */}
+            {/* Progress */}
             <Animatable.View animation="fadeIn" delay={250}>
               <DropProgress
                 progress={percent}
                 size={260}
                 color={COLOR.skyBlue}
-                text={`${total || 0} ml`}
-                subtitle={`${dailyGoal} goal`}
+                text={totalText}
+                subtitle={goalSubtitle}
                 theme={theme}
               />
             </Animatable.View>
 
+            {/* Add drink */}
+            <Text style={{ marginTop: 20, marginBottom: 15, color: COLOR.aquaMint, fontWeight: '600', fontSize: 18 }}>
+              💧 Add Your Drink
+            </Text>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 20 }}>
+              {enhancedDrinkOptions.map((option) => (
+                <DrinkButton
+                  key={`${option.label}-${option.ml}`}
+                  option={option}
+                  onPress={handleAddDrink}
+                  color={getOptionColor(option.category)}
+                  enhanced
+                  units={units}
+                />
+              ))}
+            </View>
+
             {/* Quick Stats */}
-            <QuickStats 
+            <QuickStats
               total={total}
               goal={dailyGoal}
               streak={streak}
               todayIntake={todayIntake}
               theme={theme}
+              units={units}
             />
 
-            
-            {/* Drink Options */}
-            <Text style={{
-              marginTop: 20,
-              marginBottom: 15,
-              color: COLOR.aquaMint,
-              fontWeight: '600',
-              fontSize: 18,
-            }}>
-              💧 Add Your Drink
-            </Text>
-
-            <View style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              paddingHorizontal: 20,
-            }}>
-              {enhancedDrinkOptions.map((option, i) => (
-                <DrinkButton
-                  key={i}
-                  option={option}
-                  onPress={handleAddDrink}
-                  color={option.category === 'water' ? COLOR.skyBlue : 
-                         option.category === 'sports' ? COLOR.amber : COLOR.coral}
-                  enhanced={true}
-                />
-              ))}
-            </View>
-
-            {/* XP Progress */}
-            <XPProgress 
-              userXP={userXP}
-              style={{ width: '90%' }}
-            />
+            {/* XP */}
+            <XPProgress userXP={userXP} style={{ width: '90%' }} />
 
             {/* Reset Button */}
             <TouchableOpacity
@@ -260,76 +234,61 @@ export default function HomeScreen({
               accessibilityRole="button"
               accessibilityLabel="Reset today's progress"
             >
-              <Text style={{ color: COLOR.coral, fontWeight: '600' }}>
-                Reset Today
-              </Text>
+              <Text style={{ color: COLOR.coral, fontWeight: '600' }}>Reset Today</Text>
             </TouchableOpacity>
 
             {/* Recent intake history */}
             {todayIntake.length > 0 && (
               <View style={{ width: '90%', marginTop: 30 }}>
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: COLOR.aquaMint,
-                  marginBottom: 15,
-                }}>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: COLOR.aquaMint, marginBottom: 15 }}>
                   📊 Today's Intake
                 </Text>
-                
-                <View style={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: 15,
-                  padding: 15,
-                  maxHeight: 200,
-                }}>
-                  <ScrollView nestedScrollEnabled={true}>
-                    {todayIntake.slice(-5).reverse().map((drink, index) => (
-                      <View key={index} style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        paddingVertical: 8,
-                        borderBottomWidth: index < 4 ? 1 : 0,
-                        borderBottomColor: 'rgba(255,255,255,0.1)',
-                      }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 20, marginRight: 10 }}>{drink.emoji}</Text>
-                          <View>
-                            <Text style={{ color: COLOR.white, fontWeight: '600' }}>
-                              {drink.drink}
-                            </Text>
-                            <Text style={{ color: COLOR.white, opacity: 0.7, fontSize: 12 }}>
-                              {new Date(drink.time).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </Text>
+
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 15, padding: 15, maxHeight: 200 }}>
+                  <ScrollView nestedScrollEnabled>
+                    {todayIntake
+                      .slice(-5)
+                      .reverse()
+                      .map((drink, index) => {
+                        const amount = drink.amount ?? 0;
+                        const amountDisplay = units === 'oz' ? `${mlToOz(amount)}oz` : `${amount}ml`;
+
+                        return (
+                          <View
+                            key={`${drink.time ?? index}-${index}`}
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              paddingVertical: 8,
+                              borderBottomWidth: index < 4 ? 1 : 0,
+                              borderBottomColor: 'rgba(255,255,255,0.1)',
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Text style={{ fontSize: 20, marginRight: 10 }}>{drink.emoji}</Text>
+                              <View>
+                                <Text style={{ color: COLOR.white, fontWeight: '600' }}>{drink.drink}</Text>
+                                <Text style={{ color: COLOR.white, opacity: 0.7, fontSize: 12 }}>
+                                  {new Date(drink.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={{ color: COLOR.aquaMint, fontWeight: '600', fontSize: 16 }}>{amountDisplay}</Text>
                           </View>
-                        </View>
-                        <Text style={{ 
-                          color: COLOR.aquaMint, 
-                          fontWeight: '600',
-                          fontSize: 16 
-                        }}>
-                          {drink.amount}ml
-                        </Text>
-                      </View>
-                    ))}
+                        );
+                      })}
                   </ScrollView>
                 </View>
               </View>
             )}
           </ScrollView>
-          <WaveBottom />
-
         </SafeAreaView>
       </GradientBackground>
     </LoadingOverlay>
   );
 }
 
-// PropTypes
 HomeScreen.propTypes = {
   dailyGoal: PropTypes.number.isRequired,
   total: PropTypes.number.isRequired,
