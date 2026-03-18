@@ -149,6 +149,27 @@ class StorageService {
     }
   }
 
+  // Daily XP Earned (tracks XP gained from water intake on a specific day)
+  static async getDailyXPEarned(date) {
+    try {
+      const xp = await AsyncStorage.getItem(`dailyXP_${date}`);
+      return xp ? parseInt(xp, 10) : 0;
+    } catch (error) {
+      console.error('Error getting daily XP earned:', error);
+      return 0;
+    }
+  }
+
+  static async setDailyXPEarned(date, xp) {
+    try {
+      await AsyncStorage.setItem(`dailyXP_${date}`, xp.toString());
+      return true;
+    } catch (error) {
+      console.error('Error setting daily XP earned:', error);
+      return false;
+    }
+  }
+
   static async getUnlockedThemes() {
     try {
       const themes = await AsyncStorage.getItem('unlockedThemes');

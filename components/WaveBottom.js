@@ -67,5 +67,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: -15, // to hide the hard edge
+    pointerEvents: 'none', // allow scroll and touch events to pass through the wave overlay
   },
 });

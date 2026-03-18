@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import PropTypes from 'prop-types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientBackground from '../components/GradientBackground';
@@ -7,12 +7,14 @@ import { LoadingOverlay, SkeletonLoader } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
 import StorageService from '../services/StorageService';
 import * as Animatable from 'react-native-animatable';
+import { getTodayKey } from '../utils';
 
 export default function HistoryScreen({ dailyGoal, theme }) {
   const [history, setHistory] = useState({});
+  const [todayIntake, setTodayIntake] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('all'); // all, week, month
+  const [selectedPeriod, setSelectedPeriod] = useState('today'); // today, all, week, month
 
   useEffect(() => { 
     loadHistory(); 
@@ -21,8 +23,13 @@ export default function HistoryScreen({ dailyGoal, theme }) {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const savedHistory = await StorageService.getHistory();
+      const todayKey = getTodayKey();
+      const [savedHistory, savedIntake] = await Promise.all([
+        StorageService.getHistory(),
+        StorageService.getTodayIntake(todayKey),
+      ]);
       setHistory(savedHistory);
+      setTodayIntake(savedIntake);
     } catch (error) {
       console.error('Error loading history:', error);
     } finally {
@@ -38,6 +45,8 @@ export default function HistoryScreen({ dailyGoal, theme }) {
 
   // Process and filter history data
   const historyData = useMemo(() => {
+    if (selectedPeriod === 'today') return []; // handled separately
+
     const entries = Object.entries(history)
       .map(([date, total]) => ({
         date,
@@ -146,11 +155,17 @@ export default function HistoryScreen({ dailyGoal, theme }) {
   );
 
   const renderPeriodFilter = () => (
-    <View style={styles.filterContainer}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.filterScrollContainer}
+      contentContainerStyle={styles.filterContainer}
+    >
       {[
-        { key: 'all', label: 'All Time' },
+        { key: 'today', label: 'Today' },
+        { key: 'week', label: 'This Week' },
         { key: 'month', label: 'This Month' },
-        { key: 'week', label: 'This Week' }
+        { key: 'all', label: 'All Time' },
       ].map(period => (
         <TouchableOpacity
           key={period.key}
@@ -168,7 +183,7 @@ export default function HistoryScreen({ dailyGoal, theme }) {
           </Text>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 
   const renderStats = () => {
@@ -199,8 +214,96 @@ export default function HistoryScreen({ dailyGoal, theme }) {
     );
   };
 
-  const renderEmptyState = () => (
-    <Animatable.View 
+  // --- Today tab: hourly breakdown ---
+  const renderTodayView = () => {
+    const todayTotal = todayIntake.reduce((sum, d) => sum + (d.amount ?? 0), 0);
+    const todayPercent = Math.min(Math.round((todayTotal / dailyGoal) * 100), 100);
+
+    // Group drinks by hour
+    const byHour = {};
+    todayIntake.forEach((drink) => {
+      const hour = new Date(drink.time).getHours();
+      if (!byHour[hour]) byHour[hour] = [];
+      byHour[hour].push(drink);
+    });
+    const hours = Object.keys(byHour)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    const getHourLabel = (h) => {
+      const suffix = h < 12 ? 'AM' : 'PM';
+      const display = h % 12 === 0 ? 12 : h % 12;
+      return `${display}:00 ${suffix}`;
+    };
+
+    return (
+      <Animatable.View animation="fadeIn" duration={400}>
+        {/* Today summary card */}
+        <View style={styles.todaySummaryCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: COLOR.white }}>Today's Progress</Text>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: getProgressColor(todayPercent) }}>
+              {todayPercent}%
+            </Text>
+          </View>
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${todayPercent}%`, backgroundColor: getProgressColor(todayPercent) }]} />
+          </View>
+          <Text style={{ color: COLOR.white, opacity: 0.7, fontSize: 12, marginTop: 6, textAlign: 'right' }}>
+            {todayTotal}ml / {dailyGoal}ml
+          </Text>
+
+          {/* Achievement */}
+          {todayPercent >= 100 && (
+            <View style={{ marginTop: 10, alignItems: 'center', backgroundColor: 'rgba(255,215,0,0.15)', borderRadius: 10, padding: 8 }}>
+              <Text style={{ fontSize: 16, color: COLOR.amber, fontWeight: '700' }}>🏆 Daily goal achieved!</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Hourly breakdown */}
+        {hours.length > 0 ? (
+          <>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: COLOR.aquaMint, marginBottom: 10 }}>
+              ⏰ Hourly Breakdown
+            </Text>
+            {hours.map((h) => {
+              const hourDrinks = byHour[h];
+              const hourTotal = hourDrinks.reduce((s, d) => s + (d.amount ?? 0), 0);
+              return (
+                <Animatable.View key={h} animation="fadeInLeft" duration={400} style={styles.hourBlock}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={{ color: COLOR.skyBlue, fontWeight: '600', fontSize: 13 }}>{getHourLabel(h)}</Text>
+                    <Text style={{ color: COLOR.aquaMint, fontWeight: '700', fontSize: 13 }}>{hourTotal}ml</Text>
+                  </View>
+                  {hourDrinks.map((drink, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                      <Text style={{ fontSize: 16, marginRight: 8 }}>{drink.emoji}</Text>
+                      <Text style={{ flex: 1, color: COLOR.white, fontSize: 12 }}>{drink.drink}</Text>
+                      <Text style={{ color: COLOR.white, opacity: 0.65, fontSize: 11 }}>
+                        {new Date(drink.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                      <Text style={{ color: COLOR.aquaMint, fontWeight: '600', fontSize: 12, marginLeft: 8 }}>
+                        {drink.amount}ml
+                      </Text>
+                    </View>
+                  ))}
+                </Animatable.View>
+              );
+            })}
+          </>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>💧</Text>
+            <Text style={styles.emptyTitle}>No drinks logged yet!</Text>
+            <Text style={styles.emptySubtitle}>Head to the Home tab and start tracking your hydration.</Text>
+          </View>
+        )}
+      </Animatable.View>
+    );
+  };
+
+  const renderEmptyState = () => (    <Animatable.View 
       animation="fadeIn"
       style={styles.emptyContainer}
     >
@@ -221,8 +324,8 @@ export default function HistoryScreen({ dailyGoal, theme }) {
         📜 History
       </Animatable.Text>
       
-      {historyData.length > 0 && renderStats()}
       {renderPeriodFilter()}
+      {selectedPeriod !== 'today' && historyData.length > 0 && renderStats()}
     </>
   );
 
@@ -249,18 +352,26 @@ export default function HistoryScreen({ dailyGoal, theme }) {
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, padding: 20 }}>
-          <FlatList
-            data={historyData}
-            renderItem={renderHistoryItem}
-            keyExtractor={(item) => item.date}
-            ListHeaderComponent={ListHeaderComponent}
-            ListEmptyComponent={renderEmptyState}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          />
+          {selectedPeriod === 'today' ? (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+              <Animatable.Text animation="fadeInDown" style={styles.title}>📜 History</Animatable.Text>
+              {renderPeriodFilter()}
+              {renderTodayView()}
+            </ScrollView>
+          ) : (
+            <FlatList
+              data={historyData}
+              renderItem={renderHistoryItem}
+              keyExtractor={(item) => item.date}
+              ListHeaderComponent={ListHeaderComponent}
+              ListEmptyComponent={renderEmptyState}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 100 }}
+              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            />
+          )}
         </View>
       </SafeAreaView>
     </GradientBackground>
@@ -308,12 +419,14 @@ const styles = {
     opacity: 0.8,
     marginTop: 4,
   },
-  filterContainer: {
-    flexDirection: 'row',
+  filterScrollContainer: {
     marginBottom: 20,
+  },
+  filterContainer: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 12,
     padding: 4,
+    flexDirection: 'row',
   },
   filterButton: {
     flex: 1,
@@ -419,6 +532,22 @@ const styles = {
     borderRadius: 15,
     padding: 16,
     marginBottom: 12,
+  },
+  todaySummaryCard: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  hourBlock: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
 };
 
