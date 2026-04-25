@@ -32,8 +32,8 @@ export default function AuthScreen({ onAuthenticated }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  // The temp Firebase user object (used for resend verification)
-  const [pendingUser, setPendingUser] = useState(null);
+  // The email used during sign-up (used for resend verification)
+  const [pendingEmail, setPendingEmail] = useState('');
 
   const handleSignIn = useCallback(async () => {
     if (!email.trim() || !password) {
