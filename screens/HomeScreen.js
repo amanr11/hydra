@@ -16,6 +16,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
 import XPService from '../services/XPService';
+import SoundService from '../services/SoundService';
 
 import { useHydration } from '../hooks/useHydration';
 import StorageService from '../services/StorageService';
@@ -25,11 +26,11 @@ const mlToOz = (ml) => Math.round(ml / ML_PER_OZ);
 
 const enhancedDrinkOptions = [
   { label: 'Small cup', ml: 150, emoji: '🥤', hydrationValue: 1.0, category: 'water' },
-  { label: 'Large cup', ml: 300, emoji: '🧋', hydrationValue: 1.0, category: 'water' },
-  { label: 'Bottle', ml: 500, emoji: '🚰', hydrationValue: 1.0, category: 'water' },
+  { label: 'Large cup', ml: 300, emoji: '🥛', hydrationValue: 1.0, category: 'water' },
+  { label: 'Bottle', ml: 500, emoji: '🍶', hydrationValue: 1.0, category: 'water' },
   { label: 'Tea', ml: 250, emoji: '🍵', hydrationValue: 0.9, category: 'beverage' },
   { label: 'Coffee', ml: 200, emoji: '☕', hydrationValue: 0.8, category: 'beverage' },
-  { label: 'Sports drink', ml: 350, emoji: '🥤', hydrationValue: 1.1, category: 'sports' },
+  { label: 'Sports drink', ml: 350, emoji: '⚡', hydrationValue: 1.1, category: 'sports' },
 ];
 
 const getOptionColor = (category) => {
@@ -51,8 +52,16 @@ export default function HomeScreen({
 
   const [units, setUnits] = useState('ml');
 
+  // Track thresholds already triggered this session to avoid repeated sounds
+  const triggeredThresholds = useRef({ halfway: false, complete: false });
+
   // Compute level data from XP
   const xpData = useMemo(() => XPService.getXPSummary(userXP || 0), [userXP]);
+  const prevXPData = useRef(xpData);
+
+  useEffect(() => {
+    SoundService.init();
+  }, []);
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -80,7 +89,23 @@ export default function HomeScreen({
     }
   }, [total, dailyGoal, showConfetti, showAchievementAlert]);
 
+  // Play level-up sound when XP level increases
+  useEffect(() => {
+    if (prevXPData.current.level < xpData.level) {
+      SoundService.play('levelup');
+      SoundService.haptic('success');
+    }
+    prevXPData.current = xpData;
+  }, [xpData]);
+
   const percent = useMemo(() => Math.min(total / dailyGoal, 1), [total, dailyGoal]);
+
+  // Reset threshold flags whenever the day resets (total goes back to 0)
+  useEffect(() => {
+    if (total === 0) {
+      triggeredThresholds.current = { halfway: false, complete: false };
+    }
+  }, [total]);
 
   const handleAddDrink = useCallback(
     async (option) => {
@@ -92,11 +117,26 @@ export default function HomeScreen({
           return;
         }
 
+        // Always play drink sound + light haptic on any drink added
+        SoundService.play('drink');
+        SoundService.haptic('light');
+
+        const prevPercent = (total / dailyGoal) * 100;
         const percentage = (result.newTotal / dailyGoal) * 100;
 
-        // Keep alerts minimal (avoid spamming every tap)
-        if (percentage >= 50 && percentage < 75 && total < dailyGoal * 0.5) {
+        // Halfway milestone (crossing 50%)
+        if (percentage >= 50 && prevPercent < 50 && !triggeredThresholds.current.halfway) {
+          triggeredThresholds.current.halfway = true;
+          SoundService.play('halfway');
+          SoundService.haptic('medium');
           Alert.alert('Great Progress!', "🎉 You're halfway to your goal!");
+        }
+
+        // Goal reached (crossing 100%)
+        if (percentage >= 100 && !triggeredThresholds.current.complete) {
+          triggeredThresholds.current.complete = true;
+          SoundService.play('complete');
+          SoundService.haptic('success');
         } else if (result.xpGained >= 25) {
           Alert.alert('XP Gained!', `🌟 +${result.xpGained} experience points!`);
         }

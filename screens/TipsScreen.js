@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
 import * as Animatable from 'react-native-animatable';
 
+const AUTO_ADVANCE_DELAY = 5000;
+
 export default function TipsScreen({ theme }) {
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const autoAdvanceTimer = useRef(null);
+  const userInteractedRef = useRef(false);
   
   const tips = [
     {
@@ -59,13 +63,35 @@ export default function TipsScreen({ theme }) {
     }
   ];
 
-  const nextTip = () => {
+  const nextTip = useCallback((fromUser = false) => {
+    if (fromUser) {
+      userInteractedRef.current = true;
+    }
     setCurrentTipIndex((prevIndex) => (prevIndex + 1) % tips.length);
-  };
+  }, [tips.length]);
 
-  const prevTip = () => {
+  const prevTip = useCallback(() => {
+    userInteractedRef.current = true;
     setCurrentTipIndex((prevIndex) => (prevIndex - 1 + tips.length) % tips.length);
-  };
+  }, [tips.length]);
+
+  const goToTip = useCallback((idx) => {
+    userInteractedRef.current = true;
+    setCurrentTipIndex(idx);
+  }, []);
+
+  // Reset auto-advance timer whenever currentTipIndex changes
+  useEffect(() => {
+    // If user just interacted, give a longer pause before auto-advancing again
+    const delay = userInteractedRef.current ? AUTO_ADVANCE_DELAY * 2 : AUTO_ADVANCE_DELAY;
+
+    autoAdvanceTimer.current = setTimeout(() => {
+      userInteractedRef.current = false;
+      setCurrentTipIndex((prev) => (prev + 1) % tips.length);
+    }, delay);
+
+    return () => clearTimeout(autoAdvanceTimer.current);
+  }, [currentTipIndex, tips.length]);
 
   const currentTip = tips[currentTipIndex];
 
@@ -177,7 +203,7 @@ export default function TipsScreen({ theme }) {
             </View>
 
             <TouchableOpacity 
-              onPress={nextTip}
+              onPress={() => nextTip(true)}
               style={{
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 padding: 15,
@@ -205,7 +231,7 @@ export default function TipsScreen({ theme }) {
             {tips.map((tipItem, idx) => (
               <TouchableOpacity
                 key={idx}
-                onPress={() => setCurrentTipIndex(idx)}
+                onPress={() => goToTip(idx)}
                 style={{
                   marginBottom: 10,
                   backgroundColor: idx === currentTipIndex 
