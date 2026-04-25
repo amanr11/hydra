@@ -1,30 +1,22 @@
-// services/AuthService.js - Firebase Authentication service
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendEmailVerification,
-  signOut,
-  onAuthStateChanged,
-  reload,
-} from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../firebase';
+// services/AuthService.js - Supabase Authentication service
+import { supabase, isSupabaseConfigured } from '../supabase';
 
 class AuthService {
   /**
    * Register a new user with email and password.
-   * Sends a verification email after successful registration.
+   * Supabase sends a verification email automatically.
    * @returns {{ success: boolean, user?: object, error?: string }}
    */
   static async signUp(email, password) {
-    if (!isFirebaseConfigured || !auth) {
-      return { success: false, error: 'Firebase is not configured.' };
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase is not configured.' };
     }
     try {
-      const credential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(credential.user);
-      return { success: true, user: credential.user };
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return { success: false, error: AuthService._friendlyError(error) };
+      return { success: true, user: data.user };
     } catch (e) {
-      return { success: false, error: AuthService._friendlyError(e.code) };
+      return { success: false, error: 'An unexpected error occurred. Please try again.' };
     }
   }
 
@@ -34,25 +26,25 @@ class AuthService {
    * @returns {{ success: boolean, user?: object, error?: string, unverified?: boolean }}
    */
   static async signIn(email, password) {
-    if (!isFirebaseConfigured || !auth) {
-      return { success: false, error: 'Firebase is not configured.' };
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase is not configured.' };
     }
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      // Reload the user to get the latest emailVerified status from the server,
-      // since the cached token may not reflect a verification completed after sign-in.
-      await reload(credential.user);
-      if (!credential.user.emailVerified) {
-        await signOut(auth);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { success: false, error: AuthService._friendlyError(error) };
+
+      const user = data.user;
+      if (!user.email_confirmed_at) {
+        await supabase.auth.signOut();
         return {
           success: false,
           unverified: true,
           error: 'Please verify your email before signing in. Check your inbox.',
         };
       }
-      return { success: true, user: credential.user };
+      return { success: true, user };
     } catch (e) {
-      return { success: false, error: AuthService._friendlyError(e.code) };
+      return { success: false, error: 'An unexpected error occurred. Please try again.' };
     }
   }
 
@@ -60,25 +52,26 @@ class AuthService {
    * Sign out the current user.
    */
   static async signOutUser() {
-    if (!isFirebaseConfigured || !auth) return;
+    if (!isSupabaseConfigured) return;
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (e) {
       console.error('AuthService: signOut error', e);
     }
   }
 
   /**
-   * Re-send verification email to the currently signed-in (unverified) user.
-   * @param {object} user - Firebase user object
+   * Re-send verification email to the provided email address.
+   * @param {string} email - The email address to resend verification to
    */
-  static async resendVerification(user) {
-    if (!user) return { success: false, error: 'No user provided.' };
+  static async resendVerification(email) {
+    if (!email) return { success: false, error: 'No email provided.' };
     try {
-      await sendEmailVerification(user);
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      if (error) return { success: false, error: AuthService._friendlyError(error) };
       return { success: true };
     } catch (e) {
-      return { success: false, error: AuthService._friendlyError(e.code) };
+      return { success: false, error: 'An unexpected error occurred. Please try again.' };
     }
   }
 
@@ -88,35 +81,43 @@ class AuthService {
    * @returns {function} unsubscribe
    */
   static onAuthStateChanged(callback) {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isSupabaseConfigured) {
       callback(null);
       return () => {};
     }
-    return onAuthStateChanged(auth, callback);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      callback(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
   }
 
   /**
-   * Convert Firebase error codes to user-friendly messages.
+   * Convert Supabase errors to user-friendly messages.
    */
-  static _friendlyError(code) {
-    switch (code) {
-      case 'auth/email-already-in-use':
-        return 'This email is already registered. Try signing in.';
-      case 'auth/invalid-email':
-        return 'Please enter a valid email address.';
-      case 'auth/weak-password':
-        return 'Password must be at least 6 characters.';
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/invalid-credential':
-        return 'Incorrect email or password.';
-      case 'auth/too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'auth/network-request-failed':
-        return 'Network error. Check your connection and try again.';
-      default:
-        return 'An unexpected error occurred. Please try again.';
+  static _friendlyError(error) {
+    const msg = (error?.message ?? '').toLowerCase();
+    if (msg.includes('user already registered') || msg.includes('already been registered')) {
+      return 'This email is already registered. Try signing in.';
     }
+    if (msg.includes('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (msg.includes('password should be at least') || msg.includes('weak password')) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+      return 'Incorrect email or password.';
+    }
+    if (msg.includes('email not confirmed')) {
+      return 'Please verify your email before signing in. Check your inbox.';
+    }
+    if (msg.includes('too many requests') || msg.includes('rate limit')) {
+      return 'Too many attempts. Please try again later.';
+    }
+    if (msg.includes('network') || msg.includes('fetch')) {
+      return 'Network error. Check your connection and try again.';
+    }
+    return error?.message || 'An unexpected error occurred. Please try again.';
   }
 }
 
