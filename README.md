@@ -15,54 +15,32 @@
 - **Daily Goals**: Personalized hydration targets based on your profile
 - **Real-time Statistics**: Track your daily progress and intake history
 
+### 🎵 Sound Effects & Haptics
+- **Drink Added**: Soft click sound + light haptic on every drink
+- **Halfway Milestone**: Chime + medium haptic when crossing 50% of your goal
+- **Goal Complete**: Celebratory chord + success haptic at 100%
+- **Level Up**: Special sound when you gain a new XP level
+- **Toggleable**: Enable/disable sounds and haptics separately in Settings
+
 ### 🌤️ Weather-Based Insights
 - **Weather Integration**: Real-time weather data with hydration recommendations
 - **Smart Adjustments**: Automatic goal adjustments based on temperature, humidity, and conditions
-- **Location-Aware**: Personalized advice based on your local weather
-- **Activity Correlation**: Recommendations that consider your activity level
 
 ### 🎮 Gamification & XP System
 - **Experience Points**: Earn XP for every hydration action
 - **20-Level System**: Progress through levels with meaningful rewards
 - **Achievement Tracking**: Unlock milestones and celebrate progress
-- **Unlockable Themes**: Earn beautiful new app themes through gameplay
 - **Streak Rewards**: Bonus XP for maintaining consistent habits
-
-### 🛡️ Streak Management
-- **Streak Tracking**: Monitor your consecutive hydration days
-- **Streak Safeguard**: Restore broken streaks once per month
-- **Motivation System**: Personalized encouragement based on progress
-- **Historical Analysis**: View detailed streak statistics and patterns
 
 ### 🔔 Smart Notifications
 - **Intelligent Reminders**: Adaptive notifications based on your schedule
 - **Custom Reminders**: Create personalized notification schedules
-- **Day-Specific Settings**: Different reminders for weekdays/weekends
-- **Weather-Aware**: Notifications adapt to weather conditions
 
-### 🎤 Voice Logging
-- **Voice-to-Text**: Log water intake using natural speech
-- **Smart Parsing**: Automatically detects drink type and amount
-- **XP Bonus**: Extra experience points for voice logging
-- **Quick & Convenient**: Hands-free water tracking
-
-### ♿ Accessibility
-- **Large Font Mode**: Enhanced readability for visually impaired users
-- **High Contrast Mode**: Improved visibility in all lighting conditions
-- **Screen Reader Support**: Full VoiceOver and TalkBack compatibility
-- **Voice Logging**: Alternative input method for motor impairments
-
-### 📊 Advanced Analytics
-- **Detailed History**: Comprehensive tracking with FlatList performance
-- **Period Filtering**: View data by week, month, or all time
-- **Progress Statistics**: Success rates, averages, and trends
-- **Visual Progress Bars**: Clear representation of daily achievements
-
-### 🎨 Customization
-- **Multiple Themes**: Unlock themes through achievements
-- **Dark/Light Mode**: System-responsive theme switching
-- **Profile Customization**: Personalize your hydration experience
-- **Flexible Goals**: Adjust targets based on your needs
+### 🔐 Authentication (optional)
+- **Firebase Auth**: Email/password sign up with email verification
+- **Session Persistence**: Stay signed in across app restarts
+- **Sign In Gate**: Unverified emails are blocked until verified
+- **Re-send verification**: Easily resend if the email was missed
 
 ---
 
@@ -86,8 +64,6 @@
 2. **Install dependencies:**
    ```bash
    npm install
-   # or
-   yarn install
    ```
 
 3. **Start the development server:**
@@ -101,6 +77,58 @@
 
 ---
 
+## 🔐 Firebase Authentication Setup (optional)
+
+Authentication is **disabled by default** — the app works fully without it. If you want email/password sign-in with email verification, follow these steps:
+
+### 1. Create a Firebase project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **Add project** and follow the setup wizard
+3. In the project dashboard, click **Add app → Web**
+4. Copy the config object shown
+
+### 2. Enable Email/Password authentication
+
+1. In Firebase Console, go to **Authentication → Sign-in method**
+2. Enable **Email/Password**
+3. *(Optional)* Enable **Email link (passwordless sign-in)* if desired
+
+### 3. Configure the app
+
+Open `firebase.js` and replace the placeholder values with your actual credentials:
+
+```js
+const firebaseConfig = {
+  apiKey: "your-actual-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+```
+
+> ⚠️ **Never commit real credentials to a public repository.**  
+> Add `firebase.js` to `.gitignore` if your repository is public, or use environment variables.
+
+### 4. Environment variables (recommended for CI/CD)
+
+For production, use Expo's public env variable approach:
+
+1. Rename `firebase.js` config values to `process.env.EXPO_PUBLIC_*` variables
+2. Create a `.env` file (already in `.gitignore`):
+   ```
+   EXPO_PUBLIC_FIREBASE_API_KEY=your-api-key
+   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+   EXPO_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
+   ```
+
+---
+
 ## 🎯 Usage
 
 ### Getting Started
@@ -109,19 +137,12 @@
 3. **Enable Notifications**: Allow push notifications for smart reminders
 4. **Start Tracking**: Log your first drink and begin your hydration journey!
 
-### Smart Features
-- **Weather Insights**: Check the weather panel for personalized recommendations
-- **Voice Logging**: Tap the microphone button and say "I drank 300ml of water"
-- **Streak Safeguard**: Use once per month to restore missed days
-- **Custom Reminders**: Create your own notification schedule
-- **XP & Levels**: Watch your experience grow with every action
-
-### Tips for Success
-- 🌅 **Start Early**: Log your first glass right after waking up
-- 📱 **Use Voice**: Try voice logging for quick, hands-free tracking
-- 🔔 **Smart Reminders**: Let the app remind you based on your schedule
-- 🌡️ **Weather Aware**: Pay attention to weather-based recommendations
-- 🏆 **Track Streaks**: Aim for consistency over perfection
+### Settings
+- **Sound Effects**: Toggle sounds for drink actions and milestones
+- **Haptic Feedback**: Toggle vibration feedback
+- **Notifications**: Configure smart and custom reminders
+- **Units**: Switch between ml and oz
+- **Dark Mode**: Toggle app theme
 
 ---
 
@@ -133,6 +154,8 @@
 - **WeatherService**: Weather API integration
 - **XPService**: Experience points and leveling
 - **StreakService**: Streak calculation and safeguard
+- **SoundService**: Sound effects and haptic feedback
+- **AuthService**: Firebase authentication helpers
 
 ### Component Structure
 - **Screens**: Main app screens with navigation
@@ -143,10 +166,12 @@
 ### Key Technologies
 - **React Native**: Cross-platform mobile development
 - **Expo**: Development platform and build tools
+- **expo-av**: Audio playback for sound effects
+- **expo-haptics**: Haptic feedback
 - **AsyncStorage**: Local data persistence
 - **React Navigation**: Screen navigation
 - **Expo Notifications**: Push notification system
-- **OpenWeather API**: Weather data integration
+- **Firebase Auth**: Optional email authentication
 
 ---
 
@@ -159,12 +184,12 @@
 
 ## 🔮 Upcoming Features
 
-- 🔥 **Firebase Integration**: Cloud sync and backup
 - 👥 **Social Challenges**: Compete with friends and family
 - 🤖 **AI Hydration Coach**: Personalized weekly insights
 - 🏆 **Extended Achievements**: More unlockable content
 - 📈 **Advanced Analytics**: Detailed health correlations
 - 🌍 **Community Features**: Global leaderboards and challenges
+- 🖼️ **Profile Picture**: Custom avatar with default on first login
 
 ---
 
@@ -220,3 +245,4 @@ If you encounter any issues or have questions:
 <p align="center">
   Made with 💧 and ❤️ for better hydration habits
 </p>
+

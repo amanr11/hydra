@@ -14,6 +14,8 @@ import XPService from '../services/XPService';
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
 import StreakService from '../services/StreakService';
+import AuthService from '../services/AuthService';
+import { isFirebaseConfigured } from '../firebase';
 import { calculateSmartGoal } from '../utils';
 
 // ---- helpers ----
@@ -101,6 +103,8 @@ export default function SettingsScreen({
         reminderFrequency: savedSettings?.reminderFrequency ?? 'smart',
         customReminders: savedSettings?.customReminders ?? [],
         units: savedSettings?.units ?? 'ml',
+        soundEnabled: savedSettings?.soundEnabled ?? true,
+        hapticsEnabled: savedSettings?.hapticsEnabled ?? true,
       };
 
       setSettings(migrated);
@@ -711,6 +715,37 @@ export default function SettingsScreen({
               </TouchableOpacity>
             </View>
 
+            {/* Sound & Haptics */}
+            <View style={{ marginBottom: 30 }}>
+              <Text style={sectionTitleStyle}>🔊 Sound & Haptics</Text>
+
+              <View style={[settingCardStyle, switchRowStyle]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={settingLabelStyle}>Sound Effects</Text>
+                  <Text style={settingDescStyle}>Play sounds for drink added, milestones & level ups</Text>
+                </View>
+                <Switch
+                  value={settings?.soundEnabled ?? true}
+                  onValueChange={(value) => updateSetting('soundEnabled', value)}
+                  trackColor={{ false: 'rgba(255,255,255,0.3)', true: COLOR.skyBlue }}
+                  thumbColor={COLOR.white}
+                />
+              </View>
+
+              <View style={[settingCardStyle, switchRowStyle]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={settingLabelStyle}>Haptic Feedback</Text>
+                  <Text style={settingDescStyle}>Vibration on drink added & achievements</Text>
+                </View>
+                <Switch
+                  value={settings?.hapticsEnabled ?? true}
+                  onValueChange={(value) => updateSetting('hapticsEnabled', value)}
+                  trackColor={{ false: 'rgba(255,255,255,0.3)', true: COLOR.skyBlue }}
+                  thumbColor={COLOR.white}
+                />
+              </View>
+            </View>
+
             {/* App Preferences */}
             <View style={{ marginBottom: 30 }}>
               <Text style={sectionTitleStyle}>🎨 App Preferences</Text>
@@ -740,6 +775,24 @@ export default function SettingsScreen({
                   This will delete everything permanently
                 </Text>
               </TouchableOpacity>
+
+              {isFirebaseConfigured && (
+                <TouchableOpacity
+                  onPress={() =>
+                    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Sign Out',
+                        style: 'destructive',
+                        onPress: () => AuthService.signOutUser(),
+                      },
+                    ])
+                  }
+                  style={[dangerButtonStyle, { marginTop: 12, borderColor: COLOR.amber }]}
+                >
+                  <Text style={[dangerButtonTextStyle, { color: COLOR.amber }]}>🚪 Sign Out</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
 

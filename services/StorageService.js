@@ -194,14 +194,15 @@ class StorageService {
   static async getSettings() {
     try {
       const settings = await AsyncStorage.getItem('appSettings');
-      return settings
-        ? JSON.parse(settings)
-        : {
-            notificationsEnabled: true,
-            reminderFrequency: 'smart',
-            customReminders: [],
-            units: 'ml',
-          };
+      const defaults = {
+        notificationsEnabled: true,
+        reminderFrequency: 'smart',
+        customReminders: [],
+        units: 'ml',
+        soundEnabled: true,
+        hapticsEnabled: true,
+      };
+      return settings ? { ...defaults, ...JSON.parse(settings) } : defaults;
     } catch (error) {
       console.error('Error getting settings:', error);
       return {
@@ -209,6 +210,8 @@ class StorageService {
         reminderFrequency: 'smart',
         customReminders: [],
         units: 'ml',
+        soundEnabled: true,
+        hapticsEnabled: true,
       };
     }
   }

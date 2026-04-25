@@ -5,6 +5,7 @@ import HomeScreen from './screens/HomeScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TipsScreen from './screens/TipsScreen';
+import AuthScreen from './screens/AuthScreen';
 import { useColorScheme } from 'react-native';
 import { COLOR } from './components/Theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import LoadingIndicator from './components/LoadingIndicator';
 import StorageService from './services/StorageService';
 import NotificationService from './services/NotificationService';
+import AuthService from './services/AuthService';
+import { isFirebaseConfigured } from './firebase';
 
 const Tab = createBottomTabNavigator();
 
@@ -28,6 +31,8 @@ export default function App() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Auth state: null = not checked yet, false = not authenticated, object = user
+  const [authUser, setAuthUser] = useState(undefined);
 
   const theme = darkMode
     ? { background: COLOR.charcoal, text: COLOR.white, secondary: '#0f1720', accent: COLOR.skyBlue }
@@ -36,6 +41,18 @@ export default function App() {
   useEffect(() => {
     loadUserData();
     initializeNotifications();
+  }, []);
+
+  // Subscribe to Firebase auth state changes (only when Firebase is configured)
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      setAuthUser(null); // no Firebase → skip auth
+      return;
+    }
+    const unsubscribe = AuthService.onAuthStateChanged((user) => {
+      setAuthUser(user ?? null);
+    });
+    return unsubscribe;
   }, []);
 
   const loadUserData = async () => {
@@ -80,6 +97,26 @@ export default function App() {
     return (
       <ErrorBoundary fallbackMessage={error}>
         <></>
+      </ErrorBoundary>
+    );
+  }
+
+  // Firebase is configured but auth state is still being determined
+  if (isFirebaseConfigured && authUser === undefined) {
+    return (
+      <LoadingIndicator
+        message="Loading Hydra..."
+        overlay
+        containerStyle={{ flex: 1, backgroundColor: COLOR.deepNavy }}
+      />
+    );
+  }
+
+  // Firebase is configured and user is not authenticated → show auth screen
+  if (isFirebaseConfigured && !authUser) {
+    return (
+      <ErrorBoundary>
+        <AuthScreen onAuthenticated={(user) => setAuthUser(user)} />
       </ErrorBoundary>
     );
   }
@@ -130,6 +167,16 @@ export default function App() {
           </Tab.Screen>
 
           <Tab.Screen
+            name="Tips"
+            options={{ 
+              tabBarIcon: ({color,size})=><Ionicons name="bulb-outline" color={color} size={size}/>,
+              tabBarAccessibilityLabel: 'Tips - Get hydration tips and advice'
+            }}
+          >
+            {() => <TipsScreen theme={theme} />}
+          </Tab.Screen>
+
+          <Tab.Screen
             name="Settings"
             options={{ 
               tabBarIcon: ({color,size})=><Ionicons name="settings-outline" color={color} size={size}/>,
@@ -147,16 +194,6 @@ export default function App() {
                 setUserProfile={setUserProfile}
               />
             )}
-          </Tab.Screen>
-
-          <Tab.Screen
-            name="Tips"
-            options={{ 
-              tabBarIcon: ({color,size})=><Ionicons name="bulb-outline" color={color} size={size}/>,
-              tabBarAccessibilityLabel: 'Tips - Get hydration tips and advice'
-            }}
-          >
-            {() => <TipsScreen theme={theme} />}
           </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>
