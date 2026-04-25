@@ -121,11 +121,11 @@ export default function HomeScreen({
         SoundService.play('drink');
         SoundService.haptic('light');
 
+        const prevPercent = (total / dailyGoal) * 100;
         const percentage = (result.newTotal / dailyGoal) * 100;
-        const wasBelow50 = (total / dailyGoal) * 100 < 50;
 
         // Halfway milestone (crossing 50%)
-        if (percentage >= 50 && wasBelow50 && !triggeredThresholds.current.halfway) {
+        if (percentage >= 50 && prevPercent < 50 && !triggeredThresholds.current.halfway) {
           triggeredThresholds.current.halfway = true;
           SoundService.play('halfway');
           SoundService.haptic('medium');

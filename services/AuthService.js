@@ -39,7 +39,8 @@ class AuthService {
     }
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      // Reload to get the latest emailVerified status
+      // Reload the user to get the latest emailVerified status from the server,
+      // since the cached token may not reflect a verification completed after sign-in.
       await reload(credential.user);
       if (!credential.user.emailVerified) {
         await signOut(auth);

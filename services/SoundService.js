@@ -35,6 +35,11 @@ class SoundService {
         SoundService._sounds[key] = sound;
       } catch (e) {
         console.warn(`SoundService: failed to load ${key}`, e);
+        // Unload any sounds already loaded if this one fails
+        if (SoundService._sounds[key]) {
+          try { await SoundService._sounds[key].unloadAsync(); } catch (_) {}
+          delete SoundService._sounds[key];
+        }
       }
     }
   }
