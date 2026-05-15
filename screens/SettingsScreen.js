@@ -78,16 +78,16 @@ export default function SettingsScreen({
     setTempGoal(String(dailyGoal));
   };
 
-  const onTimeChange = (event, selectedDate) => {
+  const onTimeChangeFor = React.useCallback((type) => (event, selectedDate) => {
     if (Platform.OS === 'android') {
-      setShowPicker({ ...showPicker, show: false });
+      setShowPicker((prev) => ({ ...prev, show: false }));
     }
     if (selectedDate) {
       const timeStr = formatTimeFromDate(selectedDate);
-      if (showPicker.type === 'wake') setDraftWakeTime(timeStr);
+      if (type === 'wake') setDraftWakeTime(timeStr);
       else setDraftSleepTime(timeStr);
     }
-  };
+  }, []);
   
   const loadXP = async () => {
     const xp = await StorageService.getXP();
@@ -297,7 +297,7 @@ export default function SettingsScreen({
                       })()}
                       mode="time"
                       display="compact"
-                      onChange={onTimeChange}
+                      onChange={onTimeChangeFor('wake')}
                       style={{ marginRight: -8 }}
                     />
                   ) : (
@@ -317,11 +317,7 @@ export default function SettingsScreen({
                        })()}
                        mode="time"
                        display="compact"
-                       onChange={(event, date) => {
-                         if (date) {
-                           setDraftSleepTime(formatTimeFromDate(date));
-                         }
-                       }}
+                       onChange={onTimeChangeFor('sleep')}
                        style={{ marginRight: -8 }}
                      />
                    ) : (
@@ -373,7 +369,7 @@ export default function SettingsScreen({
           )}
 
           {showPicker.show && (
-            <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChange} />
+            <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChangeFor(showPicker.type)} />
           )}
         </SafeAreaView>
       </GradientBackground>

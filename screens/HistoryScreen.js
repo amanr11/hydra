@@ -30,7 +30,7 @@ export default function HistoryScreen({ dailyGoal }) {
             total = dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
           } else if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {
             total = Number(dayEntry) || 0;
-          } else if (dayEntry && typeof dayEntry === 'object' && Number.isFinite(Number(dayEntry.total))) {
+          } else if (dayEntry && typeof dayEntry === 'object' && dayEntry.total != null && Number.isFinite(Number(dayEntry.total))) {
             total = Number(dayEntry.total);
           }
 
