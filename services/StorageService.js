@@ -212,6 +212,9 @@ class StorageService {
       ) {
         parsed.soundEnabled = parsed.soundsEnabled;
       }
+      if (parsed && typeof parsed === 'object' && Object.prototype.hasOwnProperty.call(parsed, 'soundsEnabled')) {
+        delete parsed.soundsEnabled;
+      }
       return { ...defaults, ...parsed };
     } catch (error) {
       console.error('Error getting settings:', error);

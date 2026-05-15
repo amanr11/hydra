@@ -143,7 +143,7 @@ export default function HomeScreen({
     }
 
     const newBottle = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       label: trimmedName,
       ml: parsedMl,
       emoji,
@@ -433,7 +433,7 @@ export default function HomeScreen({
                 <TextInput
                   value={customBottleEmoji}
                   onChangeText={setCustomBottleEmoji}
-                  maxLength={8}
+                  maxLength={16}
                   placeholder="🧴"
                   placeholderTextColor="rgba(255,255,255,0.45)"
                   style={{ color: COLOR.white, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}

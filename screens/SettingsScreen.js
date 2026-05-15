@@ -165,7 +165,13 @@ export default function SettingsScreen({
     setNotificationsEnabled(enabled);
     await updateSetting('notificationsEnabled', enabled);
     if (enabled) {
-      await NotificationService.requestPermissions();
+      const hasPermission = await NotificationService.requestPermissions();
+      if (!hasPermission) {
+        setNotificationsEnabled(false);
+        await updateSetting('notificationsEnabled', false);
+        Alert.alert('Notifications Disabled', 'Notification permission is required to enable reminders.');
+        return;
+      }
       await NotificationService.scheduleSmartReminders({
         ...userProfile,
         wakeTime: draftWakeTime || userProfile?.wakeTime || DEFAULT_WAKE_TIME,
