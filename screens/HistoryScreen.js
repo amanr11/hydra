@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
@@ -18,16 +19,23 @@ export default function HistoryScreen({ dailyGoal }) {
       // FIX: Ensure data exists and map safely
       if (data) {
         const formattedHistory = Object.keys(data).map(date => {
-          const dayDrinks = data[date];
-          
-          // FIX: Force it to be an array so .reduce doesn't crash
-          const safeDrinks = Array.isArray(dayDrinks) ? dayDrinks : [];
-          
-          const total = safeDrinks.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          const dayEntry = data[date];
+          let total = 0;
+
+          if (Array.isArray(dayEntry)) {
+            total = dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          } else if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {
+            total = Number(dayEntry) || 0;
+          } else if (dayEntry && typeof dayEntry === 'object' && Number.isFinite(Number(dayEntry.total))) {
+            total = Number(dayEntry.total);
+          }
+
           return { date, total };
         }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort newest first
 
         setHistory(formattedHistory);
+      } else {
+        setHistory([]);
       }
     } catch (error) {
       console.error("History Load Error:", error);
@@ -40,6 +48,12 @@ export default function HistoryScreen({ dailyGoal }) {
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -5,25 +5,24 @@ import PropTypes from 'prop-types';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
-import { useNavigation } from '@react-navigation/native';
 
 import GradientBackground from '../components/GradientBackground';
 import DropProgress from '../components/DropProgress';
 import DrinkButton from '../components/DrinkButton';
 import QuickStats from '../components/QuickStats';
-import XPProgress from '../components/XPProgress';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
 import XPService from '../services/XPService';
 import SoundService from '../services/SoundService';
+import RoadmapScreen from './RoadmapScreen';
 
 import { useHydration } from '../hooks/useHydration';
 import StorageService from '../services/StorageService';
 
 const BASE_DRINK_OPTIONS = [
   { label: 'Glass', ml: 250, emoji: '🥛', hydrationValue: 1.0, category: 'water' },
-  { label: 'Bottle', ml: 500, emoji: '🚰', hydrationValue: 1.0, category: 'water' },
+  { label: 'Bottle', ml: 500, emoji: '🧴', hydrationValue: 1.0, category: 'water' },
 ];
 const MAX_CUSTOM_BOTTLES = 3;
 const MIN_CUSTOM_BOTTLE_ML = 50;
@@ -34,7 +33,6 @@ export default function HomeScreen({
   theme,
   userProfile,
 }) {
-  const navigation = useNavigation();
   const { total, todayIntake, streak, userXP, loading, error, addDrink, resetDay } = useHydration(userProfile);
 
   const [showConfetti, setShowConfetti] = useState(false);
@@ -44,6 +42,7 @@ export default function HomeScreen({
   const [customBottleName, setCustomBottleName] = useState('');
   const [customBottleMl, setCustomBottleMl] = useState('');
   const [customBottleEmoji, setCustomBottleEmoji] = useState('🧴');
+  const [showRoadmapModal, setShowRoadmapModal] = useState(false);
 
   // Compute level data from XP
   const xpData = useMemo(() => XPService.getXPSummary(userXP || 0), [userXP]);
@@ -198,7 +197,8 @@ export default function HomeScreen({
   }
 
   const totalText = `${total || 0} ml`;
-  const goalSubtitle = `${dailyGoal} goal`;
+  const remainingMl = Math.max(0, (dailyGoal || 0) - (total || 0));
+  const goalSubtitle = remainingMl > 0 ? `${remainingMl} ml remaining` : 'Goal reached 🎉';
 
   return (
     <LoadingOverlay visible={loading} message="Loading hydration data...">
@@ -226,7 +226,7 @@ export default function HomeScreen({
 
               {/* Level Badge - top right */}
               <TouchableOpacity
-                onPress={() => navigation.navigate('Roadmap')}
+                onPress={() => setShowRoadmapModal(true)}
                 style={{
                   position: 'absolute',
                   right: 10,
@@ -306,6 +306,11 @@ export default function HomeScreen({
                   justifyContent: 'center',
                   backgroundColor: 'rgba(111,231,221,0.12)',
                   paddingHorizontal: 10,
+                  shadowColor: COLOR.aquaMint,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.28,
+                  shadowRadius: 10,
+                  elevation: 7,
                 }}
                 accessibilityRole="button"
                 accessibilityLabel="Create a new custom bottle"
@@ -328,9 +333,6 @@ export default function HomeScreen({
               todayIntake={todayIntake}
               theme={theme}
             />
-
-            {/* XP */}
-            <XPProgress userXP={userXP} style={{ width: '90%' }} />
 
             {/* Reset Button */}
             <TouchableOpacity
@@ -449,6 +451,10 @@ export default function HomeScreen({
                 </View>
               </View>
             </View>
+          </Modal>
+
+          <Modal visible={showRoadmapModal} animationType="slide" onRequestClose={() => setShowRoadmapModal(false)}>
+            <RoadmapScreen onClose={() => setShowRoadmapModal(false)} />
           </Modal>
         </SafeAreaView>
       </GradientBackground>

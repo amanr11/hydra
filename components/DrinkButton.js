@@ -54,6 +54,13 @@ const styles = StyleSheet.create({
     minHeight: 80,
     justifyContent: 'center',
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: COLOR.skyBlue,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
   emoji: {
     fontSize: 24,

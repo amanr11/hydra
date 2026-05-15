@@ -6,7 +6,6 @@ import HistoryScreen from './screens/HistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TipsScreen from './screens/TipsScreen';
 import AuthScreen from './screens/AuthScreen';
-import RoadmapScreen from './screens/RoadmapScreen';
 import { useColorScheme } from 'react-native';
 import { COLOR } from './components/Theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +15,7 @@ import StorageService from './services/StorageService';
 import NotificationService from './services/NotificationService';
 import AuthService from './services/AuthService';
 import SoundService from './services/SoundService';
-import { isFirebaseConfigured } from './firebase';
+import { auth, isFirebaseConfigured } from './firebase';
 
 const Tab = createBottomTabNavigator();
 
@@ -29,7 +28,8 @@ export default function App() {
     weight: 70,
     activityLevel: 'moderate',
     wakeTime: '07:00',
-    sleepTime: '23:00'
+    sleepTime: '23:00',
+    photoURL: null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,7 +81,11 @@ export default function App() {
         StorageService.getDailyGoal()
       ]);
       
-      if (savedProfile) setUserProfile(savedProfile);
+      if (savedProfile) {
+        setUserProfile(savedProfile);
+      } else if (isFirebaseConfigured && auth?.currentUser?.photoURL) {
+        setUserProfile((prev) => ({ ...prev, photoURL: auth.currentUser.photoURL }));
+      }
       setDailyGoal(savedGoal);
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -212,16 +216,6 @@ export default function App() {
             )}
           </Tab.Screen>
 
-          <Tab.Screen
-            name="Roadmap"
-            options={{
-              tabBarButton: () => null,
-              tabBarStyle: { display: 'none' },
-              tabBarAccessibilityLabel: 'Roadmap - View level progression',
-            }}
-          >
-            {() => <RoadmapScreen theme={theme} />}
-          </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>
     </ErrorBoundary>

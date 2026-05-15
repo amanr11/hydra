@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 
 import GradientBackground from '../components/GradientBackground';
 import { LoadingOverlay } from '../components/LoadingIndicator';
@@ -14,11 +15,13 @@ import NotificationService from '../services/NotificationService';
 import ProfilePictureService from '../services/ProfilePictureService';
 import AuthService from '../services/AuthService';
 import { isFirebaseConfigured } from '../firebase';
+import { auth } from '../firebase';
 import { calculateSmartGoal } from '../utils';
 
 // ---- helpers ----
 const DEFAULT_WAKE_TIME = '07:00';
 const DEFAULT_SLEEP_TIME = '23:00';
+const DEFAULT_PROFILE_PIC_URL = 'https://ui-avatars.com/api/?name=Hydra+User&background=b7bec8&color=ffffff&size=256';
 
 const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   if (!value || typeof value !== 'string') return fallback;
@@ -38,7 +41,7 @@ export default function SettingsScreen({
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [profilePic, setProfilePic] = useState(userProfile?.photoURL || null);
+  const [profilePic, setProfilePic] = useState(userProfile?.photoURL || DEFAULT_PROFILE_PIC_URL);
   const [xpData, setXpData] = useState({ level: 1, currentXP: 0, nextLevelXP: 100, progress: 0 });
   const [showPicker, setShowPicker] = useState({ show: false, type: 'wake' });
 
@@ -56,6 +59,13 @@ export default function SettingsScreen({
     loadProfilePic();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadXP();
+      loadProfilePic();
+    }, [])
+  );
+
   const loadSettings = async () => {
     const s = await StorageService.getSettings();
     setSettings(s);
@@ -64,7 +74,9 @@ export default function SettingsScreen({
   };
 
   const onTimeChange = (event, selectedDate) => {
-    setShowPicker({ ...showPicker, show: false });
+    if (Platform.OS === 'android') {
+      setShowPicker({ ...showPicker, show: false });
+    }
     if (selectedDate) {
       const hh = String(selectedDate.getHours()).padStart(2, '0');
       const mm = String(selectedDate.getMinutes()).padStart(2, '0');
@@ -82,10 +94,11 @@ export default function SettingsScreen({
 
   const loadProfilePic = async () => {
     if (!isFirebaseConfigured) return;
-    const user = AuthService.auth?.currentUser;
+    const user = auth?.currentUser;
     if (user) {
       const result = await ProfilePictureService.getProfilePicture(user.uid);
       if (result.success) setProfilePic(result.url);
+      else setProfilePic(user.photoURL || DEFAULT_PROFILE_PIC_URL);
     }
   };
 
@@ -231,13 +244,7 @@ export default function SettingsScreen({
             <View style={styles.profileDashboard}>
                 <TouchableOpacity onPress={handlePickImage}>
                     <View>
-                      {profilePic ? (
-                          <Image source={{ uri: profilePic }} style={styles.avatar} />
-                      ) : (
-                          <View style={styles.placeholderAvatar}>
-                              <Ionicons name="person" size={36} color={COLOR.white} />
-                          </View>
-                      )}
+                      <Image source={{ uri: profilePic || DEFAULT_PROFILE_PIC_URL }} style={styles.avatar} />
                       <View style={styles.cameraBadge}>
                         <Ionicons name="camera" size={12} color="white" />
                       </View>
@@ -277,16 +284,52 @@ export default function SettingsScreen({
 
             <SettingSection title="Schedule">
                <SettingRow icon="☀️" label="Wake Up">
-                 <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
-                   <Text style={styles.inlineInput}>{draftWakeTime}</Text>
-                 </TouchableOpacity>
-               </SettingRow>
-               <SettingRow icon="🌙" label="Sleep" isLast>
-                  <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
-                    <Text style={styles.inlineInput}>{draftSleepTime}</Text>
-                  </TouchableOpacity>
-               </SettingRow>
-             </SettingSection>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={(() => {
+                        const { hour, minute } = parseHHMM(draftWakeTime, { hour: 7, minute: 0 });
+                        const d = new Date();
+                        d.setHours(hour, minute, 0, 0);
+                        return d;
+                      })()}
+                      mode="time"
+                      display="compact"
+                      onChange={onTimeChange}
+                      style={{ marginRight: -8 }}
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
+                      <Text style={styles.inlineInput}>{draftWakeTime}</Text>
+                    </TouchableOpacity>
+                  )}
+                </SettingRow>
+                <SettingRow icon="🌙" label="Sleep" isLast>
+                   {Platform.OS === 'ios' ? (
+                     <DateTimePicker
+                       value={(() => {
+                         const { hour, minute } = parseHHMM(draftSleepTime, { hour: 23, minute: 0 });
+                         const d = new Date();
+                         d.setHours(hour, minute, 0, 0);
+                         return d;
+                       })()}
+                       mode="time"
+                       display="compact"
+                       onChange={(event, date) => {
+                         if (date) {
+                           const hh = String(date.getHours()).padStart(2, '0');
+                           const mm = String(date.getMinutes()).padStart(2, '0');
+                           setDraftSleepTime(`${hh}:${mm}`);
+                         }
+                       }}
+                       style={{ marginRight: -8 }}
+                     />
+                   ) : (
+                     <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
+                       <Text style={styles.inlineInput}>{draftSleepTime}</Text>
+                     </TouchableOpacity>
+                   )}
+                </SettingRow>
+              </SettingSection>
 
             <SettingSection title="Hydration Goal">
                <SettingRow icon="🎯" label="Daily Goal">
