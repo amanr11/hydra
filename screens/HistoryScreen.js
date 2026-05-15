@@ -22,6 +22,10 @@ export default function HistoryScreen({ dailyGoal }) {
           const dayEntry = data[date];
           let total = 0;
 
+          // Backward-compat parsing:
+          // - number/string: current format from useHydration.saveData (date -> total ml)
+          // - array: legacy format where date stored full intake entries
+          // - object.total: migration-safe fallback for partially normalized entries
           if (Array.isArray(dayEntry)) {
             total = dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
           } else if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {

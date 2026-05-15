@@ -13,7 +13,7 @@ import XPService from '../services/XPService';
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
 import ProfilePictureService from '../services/ProfilePictureService';
-import AuthService from '../services/AuthService';
+import AuthService, { DEFAULT_PROFILE_PIC_URL } from '../services/AuthService';
 import { isFirebaseConfigured } from '../firebase';
 import { auth } from '../firebase';
 import { calculateSmartGoal } from '../utils';
@@ -21,7 +21,6 @@ import { calculateSmartGoal } from '../utils';
 // ---- helpers ----
 const DEFAULT_WAKE_TIME = '07:00';
 const DEFAULT_SLEEP_TIME = '23:00';
-const DEFAULT_PROFILE_PIC_URL = 'https://ui-avatars.com/api/?name=Hydra+User&background=b7bec8&color=ffffff&size=256';
 
 const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   if (!value || typeof value !== 'string') return fallback;
@@ -30,6 +29,12 @@ const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   const m = parseInt(mRaw ?? '0', 10);
   if (!Number.isFinite(h) || h < 0 || h > 23 || !Number.isFinite(m) || m < 0 || m > 59) return fallback;
   return { hour: h, minute: m };
+};
+
+const formatTimeFromDate = (date) => {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 };
 
 export default function SettingsScreen({
@@ -78,9 +83,7 @@ export default function SettingsScreen({
       setShowPicker({ ...showPicker, show: false });
     }
     if (selectedDate) {
-      const hh = String(selectedDate.getHours()).padStart(2, '0');
-      const mm = String(selectedDate.getMinutes()).padStart(2, '0');
-      const timeStr = `${hh}:${mm}`;
+      const timeStr = formatTimeFromDate(selectedDate);
       if (showPicker.type === 'wake') setDraftWakeTime(timeStr);
       else setDraftSleepTime(timeStr);
     }
@@ -316,9 +319,7 @@ export default function SettingsScreen({
                        display="compact"
                        onChange={(event, date) => {
                          if (date) {
-                           const hh = String(date.getHours()).padStart(2, '0');
-                           const mm = String(date.getMinutes()).padStart(2, '0');
-                           setDraftSleepTime(`${hh}:${mm}`);
+                           setDraftSleepTime(formatTimeFromDate(date));
                          }
                        }}
                        style={{ marginRight: -8 }}
