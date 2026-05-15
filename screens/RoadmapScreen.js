@@ -29,7 +29,7 @@ export default function RoadmapScreen() {
       const threshold = XPService.LEVEL_THRESHOLDS[level - 1];
       arr.push({
         level,
-        threshold: Number.isFinite(threshold) ? threshold : XPService.LEVEL_THRESHOLDS[XPService.LEVEL_THRESHOLDS.length - 1],
+        threshold,
         title: XPService.getLevelTitle(level),
       });
     }

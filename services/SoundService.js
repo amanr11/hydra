@@ -40,9 +40,11 @@ class SoundService {
   }
 
   static async haptic(style = 'light') {
-    const settings = await StorageService.getSettings();
-    if (!settings?.hapticsEnabled) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings?.hapticsEnabled) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
   }
 }
 

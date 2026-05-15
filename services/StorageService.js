@@ -202,7 +202,17 @@ class StorageService {
         soundEnabled: true,
         hapticsEnabled: true,
       };
-      return settings ? { ...defaults, ...JSON.parse(settings) } : defaults;
+      if (!settings) return defaults;
+      const parsed = JSON.parse(settings);
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.soundEnabled !== 'boolean' &&
+        typeof parsed.soundsEnabled === 'boolean'
+      ) {
+        parsed.soundEnabled = parsed.soundsEnabled;
+      }
+      return { ...defaults, ...parsed };
     } catch (error) {
       console.error('Error getting settings:', error);
       return {

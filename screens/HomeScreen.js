@@ -433,7 +433,7 @@ export default function HomeScreen({
                 <TextInput
                   value={customBottleEmoji}
                   onChangeText={setCustomBottleEmoji}
-                  maxLength={2}
+                  maxLength={8}
                   placeholder="🧴"
                   placeholderTextColor="rgba(255,255,255,0.45)"
                   style={{ color: COLOR.white, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}
