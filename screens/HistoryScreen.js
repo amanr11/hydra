@@ -7,6 +7,19 @@ import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
 import StorageService from '../services/StorageService';
 
+const parseHistoryTotal = (dayEntry) => {
+  if (Array.isArray(dayEntry)) {
+    return dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  }
+  if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {
+    return Number(dayEntry) || 0;
+  }
+  if (dayEntry && typeof dayEntry === 'object' && dayEntry.total != null && Number.isFinite(Number(dayEntry.total))) {
+    return Number(dayEntry.total);
+  }
+  return 0;
+};
+
 export default function HistoryScreen({ dailyGoal }) {
   const [history, setHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -20,19 +33,11 @@ export default function HistoryScreen({ dailyGoal }) {
       if (data) {
         const formattedHistory = Object.keys(data).map(date => {
           const dayEntry = data[date];
-          let total = 0;
-
           // Backward-compat parsing:
           // - number/string: current format from useHydration.saveData (date -> total ml)
           // - array: legacy format where date stored full intake entries
           // - object.total: migration-safe fallback for partially normalized entries
-          if (Array.isArray(dayEntry)) {
-            total = dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-          } else if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {
-            total = Number(dayEntry) || 0;
-          } else if (dayEntry && typeof dayEntry === 'object' && dayEntry.total != null && Number.isFinite(Number(dayEntry.total))) {
-            total = Number(dayEntry.total);
-          }
+          const total = parseHistoryTotal(dayEntry);
 
           return { date, total };
         }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort newest first

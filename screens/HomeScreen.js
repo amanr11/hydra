@@ -22,7 +22,7 @@ import StorageService from '../services/StorageService';
 
 const BASE_DRINK_OPTIONS = [
   { label: 'Glass', ml: 250, emoji: '🥛', hydrationValue: 1.0, category: 'water' },
-  { label: 'Bottle', ml: 500, emoji: '🧴', hydrationValue: 1.0, category: 'water' },
+  { label: 'Bottle', ml: 500, emoji: '🍼', hydrationValue: 1.0, category: 'water' },
 ];
 const MAX_CUSTOM_BOTTLES = 3;
 const MIN_CUSTOM_BOTTLE_ML = 50;
