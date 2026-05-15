@@ -30,7 +30,7 @@ class SoundService {
   static async play(type) {
     try {
       const settings = await StorageService.getSettings();
-      if (!settings?.soundsEnabled) return;
+      if (!settings?.soundEnabled) return;
       
       const sound = this._sounds[type];
       if (sound) {
@@ -40,9 +40,11 @@ class SoundService {
   }
 
   static async haptic(style = 'light') {
-    const settings = await StorageService.getSettings();
-    if (!settings?.hapticsEnabled) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings?.hapticsEnabled) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
   }
 }
 

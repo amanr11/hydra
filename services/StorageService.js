@@ -202,7 +202,17 @@ class StorageService {
         soundEnabled: true,
         hapticsEnabled: true,
       };
-      return settings ? { ...defaults, ...JSON.parse(settings) } : defaults;
+      if (!settings) return defaults;
+      const parsed = JSON.parse(settings);
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.soundEnabled !== 'boolean' && typeof parsed.soundsEnabled === 'boolean') {
+          parsed.soundEnabled = parsed.soundsEnabled;
+        }
+        if (Object.prototype.hasOwnProperty.call(parsed, 'soundsEnabled')) {
+          delete parsed.soundsEnabled;
+        }
+      }
+      return { ...defaults, ...parsed };
     } catch (error) {
       console.error('Error getting settings:', error);
       return {
@@ -222,6 +232,30 @@ class StorageService {
       return true;
     } catch (error) {
       console.error('Error setting settings:', error);
+      return false;
+    }
+  }
+
+  // Custom drink bottle presets (max 3)
+  static async getCustomBottles() {
+    try {
+      const raw = await AsyncStorage.getItem('customBottles');
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.slice(0, 3);
+    } catch (error) {
+      console.error('Error getting custom bottles:', error);
+      return [];
+    }
+  }
+
+  static async setCustomBottles(bottles) {
+    try {
+      const safe = Array.isArray(bottles) ? bottles.slice(0, 3) : [];
+      await AsyncStorage.setItem('customBottles', JSON.stringify(safe));
+      return true;
+    } catch (error) {
+      console.error('Error setting custom bottles:', error);
       return false;
     }
   }
@@ -282,6 +316,7 @@ class StorageService {
         'streakSafeguardUsed',
         'completedAchievements',
         'smartReminderIds', // NEW
+        'customBottles',
       ];
       await AsyncStorage.multiRemove(keys);
       return true;

@@ -1,6 +1,6 @@
 // screens/HomeScreen.js
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import PropTypes from 'prop-types';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,27 +16,18 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
 import XPService from '../services/XPService';
+import SoundService from '../services/SoundService';
 
 import { useHydration } from '../hooks/useHydration';
 import StorageService from '../services/StorageService';
 
-const ML_PER_OZ = 29.5735;
-const mlToOz = (ml) => Math.round(ml / ML_PER_OZ);
-
-const enhancedDrinkOptions = [
-  { label: 'Small cup', ml: 150, emoji: '🥤', hydrationValue: 1.0, category: 'water' },
-  { label: 'Large cup', ml: 300, emoji: '🧋', hydrationValue: 1.0, category: 'water' },
+const BASE_DRINK_OPTIONS = [
+  { label: 'Glass', ml: 250, emoji: '🥛', hydrationValue: 1.0, category: 'water' },
   { label: 'Bottle', ml: 500, emoji: '🚰', hydrationValue: 1.0, category: 'water' },
-  { label: 'Tea', ml: 250, emoji: '🍵', hydrationValue: 0.9, category: 'beverage' },
-  { label: 'Coffee', ml: 200, emoji: '☕', hydrationValue: 0.8, category: 'beverage' },
-  { label: 'Sports drink', ml: 350, emoji: '🥤', hydrationValue: 1.1, category: 'sports' },
 ];
-
-const getOptionColor = (category) => {
-  if (category === 'water') return COLOR.skyBlue;
-  if (category === 'sports') return COLOR.amber;
-  return COLOR.coral;
-};
+const MAX_CUSTOM_BOTTLES = 3;
+const MIN_CUSTOM_BOTTLE_ML = 50;
+const MAX_CUSTOM_BOTTLE_ML = 2000;
 
 export default function HomeScreen({
   dailyGoal,
@@ -48,29 +39,32 @@ export default function HomeScreen({
 
   const [showConfetti, setShowConfetti] = useState(false);
   const confettiRef = useRef(null);
-
-  const [units, setUnits] = useState('ml');
+  const [customBottles, setCustomBottles] = useState([]);
+  const [showCustomBottleModal, setShowCustomBottleModal] = useState(false);
+  const [customBottleName, setCustomBottleName] = useState('');
+  const [customBottleMl, setCustomBottleMl] = useState('');
+  const [customBottleEmoji, setCustomBottleEmoji] = useState('🧴');
 
   // Compute level data from XP
   const xpData = useMemo(() => XPService.getXPSummary(userXP || 0), [userXP]);
 
   useEffect(() => {
-    const loadUnits = async () => {
+    const loadCustomBottles = async () => {
       try {
-        const settings = await StorageService.getSettings();
-        setUnits(settings?.units === 'oz' ? 'oz' : 'ml');
+        const saved = await StorageService.getCustomBottles();
+        setCustomBottles(Array.isArray(saved) ? saved : []);
       } catch (e) {
-        console.error('Error loading units:', e);
-        setUnits('ml');
+        console.error('Error loading custom bottles:', e);
+        setCustomBottles([]);
       }
     };
-    loadUnits();
+    loadCustomBottles();
   }, []);
 
   const showAchievementAlert = useCallback(() => {
-    const goalText = units === 'oz' ? `${mlToOz(dailyGoal)}oz` : `${dailyGoal}ml`;
+    const goalText = `${dailyGoal}ml`;
     Alert.alert('Goal Achieved! 🎉', `Congratulations! You've reached your daily goal of ${goalText}!`, [{ text: 'Awesome!' }]);
-  }, [dailyGoal, units]);
+  }, [dailyGoal]);
 
   useEffect(() => {
     if (total >= dailyGoal && confettiRef.current && !showConfetti) {
@@ -103,6 +97,9 @@ export default function HomeScreen({
           return;
         }
 
+        SoundService.play('drink');
+        SoundService.haptic('light');
+
         const percentage = (result.newTotal / dailyGoal) * 100;
 
         // Keep alerts minimal (avoid spamming every tap)
@@ -118,6 +115,55 @@ export default function HomeScreen({
     },
     [addDrink, dailyGoal, total]
   );
+
+  const drinkOptions = useMemo(
+    () => [
+      ...BASE_DRINK_OPTIONS,
+      ...customBottles.map((bottle) => ({ ...bottle, hydrationValue: 1.0, category: 'water' })),
+    ],
+    [customBottles]
+  );
+
+  const saveCustomBottle = useCallback(async () => {
+    const trimmedName = customBottleName.trim();
+    const parsedMl = parseInt(customBottleMl, 10);
+    const emoji = (customBottleEmoji || '').trim() || '🧴';
+
+    if (!trimmedName) {
+      Alert.alert('Missing Name', 'Please give your custom bottle a name.');
+      return;
+    }
+    if (!Number.isFinite(parsedMl) || parsedMl < MIN_CUSTOM_BOTTLE_ML || parsedMl > MAX_CUSTOM_BOTTLE_ML) {
+      Alert.alert('Invalid Size', `Please enter a size between ${MIN_CUSTOM_BOTTLE_ML}ml and ${MAX_CUSTOM_BOTTLE_ML}ml.`);
+      return;
+    }
+    if (customBottles.length >= MAX_CUSTOM_BOTTLES) {
+      Alert.alert('Limit Reached', `You can only create up to ${MAX_CUSTOM_BOTTLES} custom bottles.`);
+      return;
+    }
+
+    const newBottle = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      label: trimmedName,
+      ml: parsedMl,
+      emoji,
+      hydrationValue: 1.0,
+      category: 'water',
+    };
+
+    const updated = [...customBottles, newBottle].slice(0, MAX_CUSTOM_BOTTLES);
+    const saved = await StorageService.setCustomBottles(updated);
+    if (!saved) {
+      Alert.alert('Error', 'Could not save custom bottle.');
+      return;
+    }
+
+    setCustomBottles(updated);
+    setShowCustomBottleModal(false);
+    setCustomBottleName('');
+    setCustomBottleMl('');
+    setCustomBottleEmoji('🧴');
+  }, [customBottleName, customBottleMl, customBottleEmoji, customBottles]);
 
   const handleResetDay = useCallback(() => {
     Alert.alert("Reset Today", "Reset today's progress and lose XP earned today? This cannot be undone.", [
@@ -151,8 +197,8 @@ export default function HomeScreen({
     );
   }
 
-  const totalText = units === 'oz' ? `${mlToOz(total || 0)} oz` : `${total || 0} ml`;
-  const goalSubtitle = units === 'oz' ? `${mlToOz(dailyGoal)} goal` : `${dailyGoal} goal`;
+  const totalText = `${total || 0} ml`;
+  const goalSubtitle = `${dailyGoal} goal`;
 
   return (
     <LoadingOverlay visible={loading} message="Loading hydration data...">
@@ -180,7 +226,7 @@ export default function HomeScreen({
 
               {/* Level Badge - top right */}
               <TouchableOpacity
-                onPress={() => navigation.navigate('Settings')}
+                onPress={() => navigation.navigate('Roadmap')}
                 style={{
                   position: 'absolute',
                   right: 10,
@@ -194,7 +240,7 @@ export default function HomeScreen({
                   minWidth: 64,
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Level ${xpData.level}, tap to view profile`}
+                accessibilityLabel={`Level ${xpData.level}, tap to view roadmap`}
               >
                 <Text style={{ fontSize: 10, color: COLOR.amber, fontWeight: '700', letterSpacing: 0.5 }}>
                   LV {xpData.level}
@@ -230,16 +276,48 @@ export default function HomeScreen({
             </Text>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 20 }}>
-              {enhancedDrinkOptions.map((option) => (
+              {drinkOptions.map((option) => (
                 <DrinkButton
-                  key={`${option.label}-${option.ml}`}
+                  key={option.id || `${option.label}-${option.ml}`}
                   option={option}
                   onPress={handleAddDrink}
-                  color={getOptionColor(option.category)}
+                  color={COLOR.skyBlue}
                   enhanced
-                  units={units}
                 />
               ))}
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (customBottles.length >= MAX_CUSTOM_BOTTLES) {
+                    Alert.alert('Limit Reached', `You can create up to ${MAX_CUSTOM_BOTTLES} custom bottles.`);
+                    return;
+                  }
+                  setShowCustomBottleModal(true);
+                }}
+                style={{
+                  margin: 6,
+                  minWidth: 110,
+                  minHeight: 80,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderStyle: 'dashed',
+                  borderColor: COLOR.aquaMint,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(111,231,221,0.12)',
+                  paddingHorizontal: 10,
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Create a new custom bottle"
+              >
+                <Text style={{ color: COLOR.aquaMint, fontSize: 24, lineHeight: 24 }}>＋</Text>
+                <Text style={{ color: COLOR.white, marginTop: 3, fontWeight: '600', textAlign: 'center', fontSize: 12 }}>
+                  Create Custom Bottle
+                </Text>
+                <Text style={{ color: COLOR.white, opacity: 0.7, marginTop: 2, fontSize: 10 }}>
+                  {customBottles.length}/{MAX_CUSTOM_BOTTLES}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Quick Stats */}
@@ -249,7 +327,6 @@ export default function HomeScreen({
               streak={streak}
               todayIntake={todayIntake}
               theme={theme}
-              units={units}
             />
 
             {/* XP */}
@@ -286,7 +363,7 @@ export default function HomeScreen({
                       .reverse()
                       .map((drink, index) => {
                         const amount = drink.amount ?? 0;
-                        const amountDisplay = units === 'oz' ? `${mlToOz(amount)}oz` : `${amount}ml`;
+                        const amountDisplay = `${amount}ml`;
 
                         return (
                           <View
@@ -318,6 +395,61 @@ export default function HomeScreen({
               </View>
             )}
           </ScrollView>
+
+          <Modal visible={showCustomBottleModal} transparent animationType="fade" onRequestClose={() => setShowCustomBottleModal(false)}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 }}>
+              <View
+                style={{
+                  width: '100%',
+                  backgroundColor: COLOR.deepNavy,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  padding: 16,
+                }}
+              >
+                <Text style={{ color: COLOR.white, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Create Custom Bottle</Text>
+
+                <Text style={{ color: COLOR.white, opacity: 0.8, marginBottom: 6 }}>Name</Text>
+                <TextInput
+                  value={customBottleName}
+                  onChangeText={setCustomBottleName}
+                  placeholder="e.g., My Flask"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  style={{ color: COLOR.white, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
+                />
+
+                <Text style={{ color: COLOR.white, opacity: 0.8, marginBottom: 6 }}>Size (ml)</Text>
+                <TextInput
+                  value={customBottleMl}
+                  onChangeText={(t) => setCustomBottleMl(t.replace(/[^\d]/g, ''))}
+                  keyboardType="numeric"
+                  placeholder="e.g., 700"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  style={{ color: COLOR.white, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
+                />
+
+                <Text style={{ color: COLOR.white, opacity: 0.8, marginBottom: 6 }}>Emoji</Text>
+                <TextInput
+                  value={customBottleEmoji}
+                  onChangeText={setCustomBottleEmoji}
+                  maxLength={16}
+                  placeholder="🧴"
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  style={{ color: COLOR.white, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }}
+                />
+
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 }}>
+                  <TouchableOpacity onPress={() => setShowCustomBottleModal(false)} style={{ paddingHorizontal: 14, paddingVertical: 10, marginRight: 8 }}>
+                    <Text style={{ color: COLOR.white, opacity: 0.8 }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={saveCustomBottle} style={{ backgroundColor: COLOR.skyBlue, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                    <Text style={{ color: COLOR.white, fontWeight: '700' }}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </SafeAreaView>
       </GradientBackground>
     </LoadingOverlay>

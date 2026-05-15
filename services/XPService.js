@@ -42,6 +42,11 @@ class XPService {
     13800, // Level 18
     15500, // Level 19
     17300, // Level 20
+    19200, // Level 21
+    21200, // Level 22
+    23300, // Level 23
+    25500, // Level 24
+    27800, // Level 25
   ];
 
   static async getCurrentXP() {
@@ -211,7 +216,12 @@ class XPService {
       17: '🚀 Hydration Hero',
       18: '🌟 Stellar Sipper',
       19: '👑 Aqua Emperor',
-      20: '🔱 Hydration God'
+      20: '🔱 Hydration God',
+      21: '🧊 Glacier Guardian',
+      22: '🌌 Tidal Titan',
+      23: '⚡ Aqua Ascendant',
+      24: '🏔️ Ocean Overlord',
+      25: '🐉 Mythic Hydrator'
     };
     
     return titles[level] || `🌊 Level ${level} Hydrator`;
