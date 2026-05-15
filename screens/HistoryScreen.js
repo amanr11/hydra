@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
 import StorageService from '../services/StorageService';
+
+const parseHistoryTotal = (dayEntry) => {
+  if (Array.isArray(dayEntry)) {
+    return dayEntry.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  }
+  if (typeof dayEntry === 'number' || typeof dayEntry === 'string') {
+    return Number(dayEntry) || 0;
+  }
+  if (dayEntry && typeof dayEntry === 'object' && dayEntry.total != null && Number.isFinite(Number(dayEntry.total))) {
+    return Number(dayEntry.total);
+  }
+  return 0;
+};
 
 export default function HistoryScreen({ dailyGoal }) {
   const [history, setHistory] = useState([]);
@@ -18,16 +32,19 @@ export default function HistoryScreen({ dailyGoal }) {
       // FIX: Ensure data exists and map safely
       if (data) {
         const formattedHistory = Object.keys(data).map(date => {
-          const dayDrinks = data[date];
-          
-          // FIX: Force it to be an array so .reduce doesn't crash
-          const safeDrinks = Array.isArray(dayDrinks) ? dayDrinks : [];
-          
-          const total = safeDrinks.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          const dayEntry = data[date];
+          // Backward-compat parsing:
+          // - number/string: current format from useHydration.saveData (date -> total ml)
+          // - array: legacy format where date stored full intake entries
+          // - object.total: migration-safe fallback for partially normalized entries
+          const total = parseHistoryTotal(dayEntry);
+
           return { date, total };
         }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort newest first
 
         setHistory(formattedHistory);
+      } else {
+        setHistory([]);
       }
     } catch (error) {
       console.error("History Load Error:", error);
@@ -40,6 +57,12 @@ export default function HistoryScreen({ dailyGoal }) {
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

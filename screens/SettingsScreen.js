@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 
 import GradientBackground from '../components/GradientBackground';
 import { LoadingOverlay } from '../components/LoadingIndicator';
@@ -12,8 +13,9 @@ import XPService from '../services/XPService';
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
 import ProfilePictureService from '../services/ProfilePictureService';
-import AuthService from '../services/AuthService';
+import AuthService, { DEFAULT_PROFILE_PIC_URL } from '../services/AuthService';
 import { isFirebaseConfigured } from '../firebase';
+import { auth } from '../firebase';
 import { calculateSmartGoal } from '../utils';
 
 // ---- helpers ----
@@ -29,6 +31,14 @@ const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   return { hour: h, minute: m };
 };
 
+const formatTimeFromDate = (date) => {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const resolveProfilePic = (url) => url || DEFAULT_PROFILE_PIC_URL;
+
 export default function SettingsScreen({
   dailyGoal,
   setDailyGoal,
@@ -38,7 +48,7 @@ export default function SettingsScreen({
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [profilePic, setProfilePic] = useState(userProfile?.photoURL || null);
+  const [profilePic, setProfilePic] = useState(resolveProfilePic(userProfile?.photoURL));
   const [xpData, setXpData] = useState({ level: 1, currentXP: 0, nextLevelXP: 100, progress: 0 });
   const [showPicker, setShowPicker] = useState({ show: false, type: 'wake' });
 
@@ -56,6 +66,13 @@ export default function SettingsScreen({
     loadProfilePic();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      loadXP();
+      loadProfilePic();
+    }, [])
+  );
+
   const loadSettings = async () => {
     const s = await StorageService.getSettings();
     setSettings(s);
@@ -63,16 +80,16 @@ export default function SettingsScreen({
     setTempGoal(String(dailyGoal));
   };
 
-  const onTimeChange = (event, selectedDate) => {
-    setShowPicker({ ...showPicker, show: false });
+  const onTimeChangeFor = React.useCallback((type) => (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowPicker((prev) => ({ ...prev, show: false }));
+    }
     if (selectedDate) {
-      const hh = String(selectedDate.getHours()).padStart(2, '0');
-      const mm = String(selectedDate.getMinutes()).padStart(2, '0');
-      const timeStr = `${hh}:${mm}`;
-      if (showPicker.type === 'wake') setDraftWakeTime(timeStr);
+      const timeStr = formatTimeFromDate(selectedDate);
+      if (type === 'wake') setDraftWakeTime(timeStr);
       else setDraftSleepTime(timeStr);
     }
-  };
+  }, []);
   
   const loadXP = async () => {
     const xp = await StorageService.getXP();
@@ -82,10 +99,11 @@ export default function SettingsScreen({
 
   const loadProfilePic = async () => {
     if (!isFirebaseConfigured) return;
-    const user = AuthService.auth?.currentUser;
+    const user = auth?.currentUser;
     if (user) {
       const result = await ProfilePictureService.getProfilePicture(user.uid);
-      if (result.success) setProfilePic(result.url);
+      if (result.success) setProfilePic(resolveProfilePic(result.url));
+      else setProfilePic(resolveProfilePic(user.photoURL));
     }
   };
 
@@ -231,13 +249,7 @@ export default function SettingsScreen({
             <View style={styles.profileDashboard}>
                 <TouchableOpacity onPress={handlePickImage}>
                     <View>
-                      {profilePic ? (
-                          <Image source={{ uri: profilePic }} style={styles.avatar} />
-                      ) : (
-                          <View style={styles.placeholderAvatar}>
-                              <Ionicons name="person" size={36} color={COLOR.white} />
-                          </View>
-                      )}
+                      <Image source={{ uri: resolveProfilePic(profilePic) }} style={styles.avatar} />
                       <View style={styles.cameraBadge}>
                         <Ionicons name="camera" size={12} color="white" />
                       </View>
@@ -277,16 +289,46 @@ export default function SettingsScreen({
 
             <SettingSection title="Schedule">
                <SettingRow icon="☀️" label="Wake Up">
-                 <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
-                   <Text style={styles.inlineInput}>{draftWakeTime}</Text>
-                 </TouchableOpacity>
-               </SettingRow>
-               <SettingRow icon="🌙" label="Sleep" isLast>
-                  <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
-                    <Text style={styles.inlineInput}>{draftSleepTime}</Text>
-                  </TouchableOpacity>
-               </SettingRow>
-             </SettingSection>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={(() => {
+                        const { hour, minute } = parseHHMM(draftWakeTime, { hour: 7, minute: 0 });
+                        const d = new Date();
+                        d.setHours(hour, minute, 0, 0);
+                        return d;
+                      })()}
+                      mode="time"
+                      display="compact"
+                      onChange={onTimeChangeFor('wake')}
+                      style={{ marginRight: -8 }}
+                    />
+                  ) : (
+                    <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
+                      <Text style={styles.inlineInput}>{draftWakeTime}</Text>
+                    </TouchableOpacity>
+                  )}
+                </SettingRow>
+                <SettingRow icon="🌙" label="Sleep" isLast>
+                   {Platform.OS === 'ios' ? (
+                     <DateTimePicker
+                       value={(() => {
+                         const { hour, minute } = parseHHMM(draftSleepTime, { hour: 23, minute: 0 });
+                         const d = new Date();
+                         d.setHours(hour, minute, 0, 0);
+                         return d;
+                       })()}
+                       mode="time"
+                       display="compact"
+                       onChange={onTimeChangeFor('sleep')}
+                       style={{ marginRight: -8 }}
+                     />
+                   ) : (
+                     <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
+                       <Text style={styles.inlineInput}>{draftSleepTime}</Text>
+                     </TouchableOpacity>
+                   )}
+                </SettingRow>
+              </SettingSection>
 
             <SettingSection title="Hydration Goal">
                <SettingRow icon="🎯" label="Daily Goal">
@@ -329,7 +371,7 @@ export default function SettingsScreen({
           )}
 
           {showPicker.show && (
-            <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChange} />
+            <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChangeFor(showPicker.type)} />
           )}
         </SafeAreaView>
       </GradientBackground>

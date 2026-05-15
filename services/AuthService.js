@@ -7,10 +7,13 @@ import {
   onAuthStateChanged,
   reload,
   deleteUser,
+  updateProfile,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, isFirebaseConfigured, db} from '../firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+
+export const DEFAULT_PROFILE_PIC_URL = 'https://ui-avatars.com/api/?name=Hydra+User&background=b7bec8&color=ffffff&size=256';
 
 class AuthService {
   /**
@@ -21,6 +24,10 @@ class AuthService {
   static async signUp(email, password) {
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, {
+        displayName: credential.user.displayName || 'Hydra User',
+        photoURL: credential.user.photoURL || DEFAULT_PROFILE_PIC_URL,
+      });
       
       // Don't send Firebase's default email - Cloud Function will send custom one!
       // await sendEmailVerification(credential.user); // REMOVE THIS
