@@ -226,6 +226,30 @@ class StorageService {
     }
   }
 
+  // Custom drink bottle presets (max 3)
+  static async getCustomBottles() {
+    try {
+      const raw = await AsyncStorage.getItem('customBottles');
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.slice(0, 3);
+    } catch (error) {
+      console.error('Error getting custom bottles:', error);
+      return [];
+    }
+  }
+
+  static async setCustomBottles(bottles) {
+    try {
+      const safe = Array.isArray(bottles) ? bottles.slice(0, 3) : [];
+      await AsyncStorage.setItem('customBottles', JSON.stringify(safe));
+      return true;
+    } catch (error) {
+      console.error('Error setting custom bottles:', error);
+      return false;
+    }
+  }
+
   // Smart reminder IDs (NEW)
   static async getSmartReminderIds() {
     try {
@@ -282,6 +306,7 @@ class StorageService {
         'streakSafeguardUsed',
         'completedAchievements',
         'smartReminderIds', // NEW
+        'customBottles',
       ];
       await AsyncStorage.multiRemove(keys);
       return true;

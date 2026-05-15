@@ -1,29 +1,22 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Image, Text, TouchableOpacity, Switch, Alert, ScrollView, TextInput, StyleSheet, Dimensions } from 'react-native';
-import PropTypes from 'prop-types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Image, Text, TouchableOpacity, Switch, Alert, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import GradientBackground from '../components/GradientBackground';
-import StreakSafeguard from '../components/StreakSafeguard';
-import CustomReminders from '../components/CustomReminders';
 import { LoadingOverlay } from '../components/LoadingIndicator';
 import { COLOR } from '../components/Theme';
 import XPService from '../services/XPService';
 import StorageService from '../services/StorageService';
 import NotificationService from '../services/NotificationService';
 import ProfilePictureService from '../services/ProfilePictureService';
-import StreakService from '../services/StreakService';
 import AuthService from '../services/AuthService';
 import { isFirebaseConfigured } from '../firebase';
 import { calculateSmartGoal } from '../utils';
 
 // ---- helpers ----
-const ML_PER_OZ = 29.5735;
-const toOz = (ml) => Math.round(ml / ML_PER_OZ);
-const toMl = (oz) => Math.round(oz * ML_PER_OZ);
 const DEFAULT_WAKE_TIME = '07:00';
 const DEFAULT_SLEEP_TIME = '23:00';
 
@@ -36,17 +29,9 @@ const parseHHMM = (value, fallback = { hour: 7, minute: 0 }) => {
   return { hour: h, minute: m };
 };
 
-const formatHHMM = (hour, minute) => {
-  const hh = String(hour).padStart(2, '0');
-  const mm = String(minute).padStart(2, '0');
-  return `${hh}:${mm}`;
-};
-
 export default function SettingsScreen({
   dailyGoal,
   setDailyGoal,
-  darkMode,
-  setDarkMode,
   userProfile,
   setUserProfile,
 }) {
@@ -75,7 +60,7 @@ export default function SettingsScreen({
     const s = await StorageService.getSettings();
     setSettings(s);
     setNotificationsEnabled(s?.notificationsEnabled ?? true);
-    setTempGoal(s?.units === 'oz' ? String(toOz(dailyGoal)) : String(dailyGoal));
+    setTempGoal(String(dailyGoal));
   };
 
   const onTimeChange = (event, selectedDate) => {
@@ -113,7 +98,7 @@ export default function SettingsScreen({
   };
 
   // 2. Call your utility function with the object it expects
-  const recGoalMl = useMemo(() => {
+const recGoalMl = useMemo(() => {
       try {
         return calculateSmartGoal(safeProfileForCalc);
       } catch (e) {
@@ -121,11 +106,10 @@ export default function SettingsScreen({
       }
     }, [safeProfileForCalc]);
 
-  const units = settings?.units ?? 'ml';
-  const recGoalDisplay = units === 'oz' ? `${toOz(recGoalMl)} oz` : `${recGoalMl} ml`;
+  const recGoalDisplay = `${recGoalMl} ml`;
 
   const profileDirty = useMemo(() => {
-    const goalVal = units === 'oz' ? toMl(Number(tempGoal)) : Number(tempGoal);
+    const goalVal = Number(tempGoal);
     return (
       (draftName || '').trim() !== (userProfile.name || '').trim() ||
       draftWeight !== String(userProfile.weight || '') ||
@@ -134,7 +118,7 @@ export default function SettingsScreen({
       draftSleepTime !== (userProfile.sleepTime || DEFAULT_SLEEP_TIME) ||
       goalVal !== dailyGoal
     );
-  }, [draftName, draftWeight, draftActivityLevel, draftWakeTime, draftSleepTime, tempGoal, userProfile, dailyGoal, units]);
+  }, [draftName, draftWeight, draftActivityLevel, draftWakeTime, draftSleepTime, tempGoal, userProfile, dailyGoal]);
 
   const saveProfile = async () => {
     const weightVal = parseInt(draftWeight, 10);
@@ -145,7 +129,7 @@ export default function SettingsScreen({
 
     setLoading(true);
     try {
-      const finalGoal = units === 'oz' ? toMl(Number(tempGoal)) : Number(tempGoal);
+      const finalGoal = Number(tempGoal);
       const updates = {
         name: draftName.trim(),
         weight: weightVal,
@@ -158,6 +142,10 @@ export default function SettingsScreen({
       setUserProfile({ ...userProfile, ...updates });
       setDailyGoal(finalGoal);
       await StorageService.setDailyGoal(finalGoal);
+
+      if (settings?.notificationsEnabled) {
+        await NotificationService.scheduleSmartReminders({ ...userProfile, ...updates });
+      }
       
       Alert.alert('Success', 'Profile updated!');
     } catch (err) {
@@ -171,8 +159,32 @@ export default function SettingsScreen({
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     await StorageService.setSettings(newSettings);
-    if (key === 'units') setTempGoal(value === 'oz' ? String(toOz(dailyGoal)) : String(dailyGoal));
   };
+
+  const toggleNotifications = async (enabled) => {
+    setNotificationsEnabled(enabled);
+    await updateSetting('notificationsEnabled', enabled);
+    if (enabled) {
+      await NotificationService.requestPermissions();
+      await NotificationService.scheduleSmartReminders({
+        ...userProfile,
+        wakeTime: draftWakeTime || userProfile?.wakeTime || DEFAULT_WAKE_TIME,
+        sleepTime: draftSleepTime || userProfile?.sleepTime || DEFAULT_SLEEP_TIME,
+      });
+      const latestSettings = await StorageService.getSettings();
+      await NotificationService.scheduleCustomReminders(latestSettings?.customReminders || []);
+      return;
+    }
+    await NotificationService.cancelAllReminders();
+  };
+
+  const pickerDate = useMemo(() => {
+    const fallback = showPicker.type === 'wake' ? { hour: 7, minute: 0 } : { hour: 23, minute: 0 };
+    const parsed = parseHHMM(showPicker.type === 'wake' ? draftWakeTime : draftSleepTime, fallback);
+    const d = new Date();
+    d.setHours(parsed.hour, parsed.minute, 0, 0);
+    return d;
+  }, [showPicker, draftWakeTime, draftSleepTime]);
 
   const handlePickImage = async () => {
     const result = await ProfilePictureService.pickAndUploadImage();
@@ -212,13 +224,18 @@ export default function SettingsScreen({
             {/* PROFILE DASHBOARD */}
             <View style={styles.profileDashboard}>
                 <TouchableOpacity onPress={handlePickImage}>
-                    {profilePic ? (
-                        <Image source={{ uri: profilePic }} style={styles.avatar} />
-                    ) : (
-                        <View style={styles.placeholderAvatar}>
-                            <Ionicons name="camera" size={24} color="white" />
-                        </View>
-                    )}
+                    <View>
+                      {profilePic ? (
+                          <Image source={{ uri: profilePic }} style={styles.avatar} />
+                      ) : (
+                          <View style={styles.placeholderAvatar}>
+                              <Ionicons name="person" size={36} color="rgba(255,255,255,0.8)" />
+                          </View>
+                      )}
+                      <View style={styles.cameraBadge}>
+                        <Ionicons name="camera" size={12} color="white" />
+                      </View>
+                    </View>
                 </TouchableOpacity>
 
                 <View style={styles.xpInfo}>
@@ -254,34 +271,38 @@ export default function SettingsScreen({
 
             <SettingSection title="Schedule">
                <SettingRow icon="☀️" label="Wake Up">
-                 <TextInput style={styles.inlineInput} value={draftWakeTime} onChangeText={setDraftWakeTime} maxLength={5} />
-               </SettingRow>
+                 <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
+                   <Text style={styles.inlineInput}>{draftWakeTime}</Text>
+                 </TouchableOpacity>
+                </SettingRow>
                <SettingRow icon="🌙" label="Sleep" isLast>
-                 <TextInput style={styles.inlineInput} value={draftSleepTime} onChangeText={setDraftSleepTime} maxLength={5} />
-               </SettingRow>
-            </SettingSection>
+                 <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
+                   <Text style={styles.inlineInput}>{draftSleepTime}</Text>
+                 </TouchableOpacity>
+                </SettingRow>
+             </SettingSection>
 
             <SettingSection title="Hydration Goal">
                <SettingRow icon="🎯" label="Daily Goal">
                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
                     <TextInput style={styles.inlineInput} value={tempGoal} onChangeText={t => setTempGoal(t.replace(/[^\d]/g, ''))} keyboardType="numeric" />
-                    <Text style={styles.unitLabel}>{units}</Text>
-                 </View>
-               </SettingRow>
-               <TouchableOpacity style={styles.smartGoalLink} onPress={() => setTempGoal(units === 'oz' ? String(toOz(recGoalMl)) : String(recGoalMl))}>
-                 <Text style={styles.smartGoalText}>✨ Use Smart Recommendation ({recGoalDisplay})</Text>
-               </TouchableOpacity>
-            </SettingSection>
+                     <Text style={styles.unitLabel}>ml</Text>
+                  </View>
+                </SettingRow>
+               <TouchableOpacity style={styles.smartGoalLink} onPress={() => setTempGoal(String(recGoalMl))}>
+                  <Text style={styles.smartGoalText}>✨ Use Smart Recommendation ({recGoalDisplay})</Text>
+                </TouchableOpacity>
+             </SettingSection>
 
             <SettingSection title="Preferences">
               <SettingRow icon="🔔" label="Notifications">
-                <Switch value={notificationsEnabled} onValueChange={v => updateSetting('notificationsEnabled', v)} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
+                <Switch value={notificationsEnabled} onValueChange={toggleNotifications} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
               </SettingRow>
-              <SettingRow icon="📏" label="Use Ounces (oz)">
-                <Switch value={units === 'oz'} onValueChange={v => updateSetting('units', v ? 'oz' : 'ml')} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
+              <SettingRow icon="🔊" label="Sounds">
+                <Switch value={!!settings?.soundEnabled} onValueChange={v => updateSetting('soundEnabled', v)} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
               </SettingRow>
-              <SettingRow icon="🎨" label="Dark Mode" isLast>
-                <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
+              <SettingRow icon="📳" label="Haptics" isLast>
+                <Switch value={!!settings?.hapticsEnabled} onValueChange={v => updateSetting('hapticsEnabled', v)} trackColor={{ false: '#3e3e3e', true: COLOR.skyBlue }} />
               </SettingRow>
             </SettingSection>
 
@@ -300,6 +321,10 @@ export default function SettingsScreen({
                 </TouchableOpacity>
             </Animatable.View>
           )}
+
+          {showPicker.show && (
+            <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChange} />
+          )}
         </SafeAreaView>
       </GradientBackground>
     </LoadingOverlay>
@@ -311,7 +336,20 @@ const styles = StyleSheet.create({
   mainTitle: { fontSize: 32, fontWeight: '800', color: 'white' },
   profileDashboard: { flexDirection: 'row', padding: 20, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 20, borderRadius: 20, marginBottom: 25 },
   avatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: COLOR.skyBlue },
-  placeholderAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
+  placeholderAvatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLOR.skyBlue },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLOR.skyBlue,
+    borderWidth: 1.5,
+    borderColor: COLOR.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   xpInfo: { marginLeft: 20, flex: 1 },
   userName: { fontSize: 20, fontWeight: 'bold', color: 'white' },
   levelText: { color: COLOR.amber, fontSize: 11, fontWeight: '800', marginBottom: 4 },

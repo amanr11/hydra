@@ -6,6 +6,7 @@ import HistoryScreen from './screens/HistoryScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import TipsScreen from './screens/TipsScreen';
 import AuthScreen from './screens/AuthScreen';
+import RoadmapScreen from './screens/RoadmapScreen';
 import { useColorScheme } from 'react-native';
 import { COLOR } from './components/Theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,7 @@ import LoadingIndicator from './components/LoadingIndicator';
 import StorageService from './services/StorageService';
 import NotificationService from './services/NotificationService';
 import AuthService from './services/AuthService';
+import SoundService from './services/SoundService';
 import { isFirebaseConfigured } from './firebase';
 
 const Tab = createBottomTabNavigator();
@@ -41,6 +43,7 @@ export default function App() {
   useEffect(() => {
     loadUserData();
     initializeNotifications();
+    SoundService.init();
   }, []);
 
   // Subscribe to Firebase auth state changes (only when Firebase is configured)
@@ -207,6 +210,17 @@ export default function App() {
                 setUserProfile={setUserProfile}
               />
             )}
+          </Tab.Screen>
+
+          <Tab.Screen
+            name="Roadmap"
+            options={{
+              tabBarButton: () => null,
+              tabBarStyle: { display: 'none' },
+              tabBarAccessibilityLabel: 'Roadmap - View level progression',
+            }}
+          >
+            {() => <RoadmapScreen theme={theme} />}
           </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>

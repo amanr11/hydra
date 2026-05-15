@@ -30,7 +30,7 @@ class SoundService {
   static async play(type) {
     try {
       const settings = await StorageService.getSettings();
-      if (!settings?.soundsEnabled) return;
+      if (!settings?.soundEnabled) return;
       
       const sound = this._sounds[type];
       if (sound) {
