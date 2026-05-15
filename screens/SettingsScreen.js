@@ -98,13 +98,13 @@ export default function SettingsScreen({
   };
 
   // 2. Call your utility function with the object it expects
-const recGoalMl = useMemo(() => {
-      try {
-        return calculateSmartGoal(safeProfileForCalc);
-      } catch (e) {
-        return 2500; // Fallback if split(':') still fails
-      }
-    }, [safeProfileForCalc]);
+  const recGoalMl = useMemo(() => {
+    try {
+      return calculateSmartGoal(safeProfileForCalc);
+    } catch (e) {
+      return 2500; // Fallback if split(':') still fails
+    }
+  }, [safeProfileForCalc]);
 
   const recGoalDisplay = `${recGoalMl} ml`;
 
@@ -274,12 +274,12 @@ const recGoalMl = useMemo(() => {
                  <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'wake' })}>
                    <Text style={styles.inlineInput}>{draftWakeTime}</Text>
                  </TouchableOpacity>
-                </SettingRow>
+               </SettingRow>
                <SettingRow icon="🌙" label="Sleep" isLast>
-                 <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
-                   <Text style={styles.inlineInput}>{draftSleepTime}</Text>
-                 </TouchableOpacity>
-                </SettingRow>
+                  <TouchableOpacity onPress={() => setShowPicker({ show: true, type: 'sleep' })}>
+                    <Text style={styles.inlineInput}>{draftSleepTime}</Text>
+                  </TouchableOpacity>
+               </SettingRow>
              </SettingSection>
 
             <SettingSection title="Hydration Goal">

@@ -26,6 +26,8 @@ const BASE_DRINK_OPTIONS = [
   { label: 'Bottle', ml: 500, emoji: '🚰', hydrationValue: 1.0, category: 'water' },
 ];
 const MAX_CUSTOM_BOTTLES = 3;
+const MIN_CUSTOM_BOTTLE_ML = 50;
+const MAX_CUSTOM_BOTTLE_ML = 2000;
 
 export default function HomeScreen({
   dailyGoal,
@@ -131,8 +133,8 @@ export default function HomeScreen({
       Alert.alert('Missing Name', 'Please give your custom bottle a name.');
       return;
     }
-    if (!Number.isFinite(parsedMl) || parsedMl < 50 || parsedMl > 2000) {
-      Alert.alert('Invalid Size', 'Please enter a size between 50ml and 2000ml.');
+    if (!Number.isFinite(parsedMl) || parsedMl < MIN_CUSTOM_BOTTLE_ML || parsedMl > MAX_CUSTOM_BOTTLE_ML) {
+      Alert.alert('Invalid Size', `Please enter a size between ${MIN_CUSTOM_BOTTLE_ML}ml and ${MAX_CUSTOM_BOTTLE_ML}ml.`);
       return;
     }
     if (customBottles.length >= MAX_CUSTOM_BOTTLES) {
