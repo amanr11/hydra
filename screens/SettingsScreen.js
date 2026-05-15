@@ -37,6 +37,8 @@ const formatTimeFromDate = (date) => {
   return `${hh}:${mm}`;
 };
 
+const resolveProfilePic = (url) => url || DEFAULT_PROFILE_PIC_URL;
+
 export default function SettingsScreen({
   dailyGoal,
   setDailyGoal,
@@ -46,7 +48,7 @@ export default function SettingsScreen({
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [profilePic, setProfilePic] = useState(userProfile?.photoURL || DEFAULT_PROFILE_PIC_URL);
+  const [profilePic, setProfilePic] = useState(resolveProfilePic(userProfile?.photoURL));
   const [xpData, setXpData] = useState({ level: 1, currentXP: 0, nextLevelXP: 100, progress: 0 });
   const [showPicker, setShowPicker] = useState({ show: false, type: 'wake' });
 
@@ -100,8 +102,8 @@ export default function SettingsScreen({
     const user = auth?.currentUser;
     if (user) {
       const result = await ProfilePictureService.getProfilePicture(user.uid);
-      if (result.success) setProfilePic(result.url);
-      else setProfilePic(user.photoURL || DEFAULT_PROFILE_PIC_URL);
+      if (result.success) setProfilePic(resolveProfilePic(result.url));
+      else setProfilePic(resolveProfilePic(user.photoURL));
     }
   };
 
@@ -247,7 +249,7 @@ export default function SettingsScreen({
             <View style={styles.profileDashboard}>
                 <TouchableOpacity onPress={handlePickImage}>
                     <View>
-                      <Image source={{ uri: profilePic || DEFAULT_PROFILE_PIC_URL }} style={styles.avatar} />
+                      <Image source={{ uri: resolveProfilePic(profilePic) }} style={styles.avatar} />
                       <View style={styles.cameraBadge}>
                         <Ionicons name="camera" size={12} color="white" />
                       </View>

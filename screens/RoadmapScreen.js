@@ -117,6 +117,8 @@ export default function RoadmapScreen({ onClose }) {
                     shadowRadius: 8,
                     elevation: current || reached ? 5 : 2,
                   }}
+                  accessible
+                  accessibilityLabel={`${current ? 'Current Level' : reached ? 'Unlocked Level' : 'Locked Level'} ${item.level}. ${item.title}. Unlocks at ${item.threshold} XP.`}
                 >
                   <View
                     style={{

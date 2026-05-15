@@ -10,10 +10,15 @@ const TIPS = [
   { title: "Cognitive Focus", body: "Brain tissue is 75% water. Stay hydrated to avoid brain fog and fatigue.", icon: "brain", color: COLOR.skyBlue },
   { title: "Workout Recovery", body: "Sip water every 15 minutes during exercise to prevent muscle cramps.", icon: "fitness", color: COLOR.aquaMint }
 ];
+const CHALLENGES = [
+  'Drink 1 glass within 30 mins of waking up',
+  'Hit 50% of your goal before lunch',
+  'Log your final drink before bedtime',
+];
 
 export default function TipsScreen() {
   const [tipIndex, setTipIndex] = useState(0);
-  const [checked, setChecked] = useState([false, false, false]);
+  const [checked, setChecked] = useState(() => CHALLENGES.map(() => false));
 
   const activeTip = useMemo(() => TIPS[tipIndex % TIPS.length], [tipIndex]);
 
@@ -40,11 +45,7 @@ export default function TipsScreen() {
 
           <View style={styles.challengeCard}>
             <Text style={styles.challengeTitle}>🏅 Daily Mini Challenge</Text>
-            {[
-              'Drink 1 glass within 30 mins of waking up',
-              'Hit 50% of your goal before lunch',
-              'Log your final drink before bedtime',
-            ].map((item, index) => (
+            {CHALLENGES.map((item, index) => (
               <TouchableOpacity
                 key={item}
                 onPress={() => {
