@@ -204,16 +204,13 @@ class StorageService {
       };
       if (!settings) return defaults;
       const parsed = JSON.parse(settings);
-      if (
-        parsed &&
-        typeof parsed === 'object' &&
-        typeof parsed.soundEnabled !== 'boolean' &&
-        typeof parsed.soundsEnabled === 'boolean'
-      ) {
-        parsed.soundEnabled = parsed.soundsEnabled;
-      }
-      if (parsed && typeof parsed === 'object' && Object.prototype.hasOwnProperty.call(parsed, 'soundsEnabled')) {
-        delete parsed.soundsEnabled;
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.soundEnabled !== 'boolean' && typeof parsed.soundsEnabled === 'boolean') {
+          parsed.soundEnabled = parsed.soundsEnabled;
+        }
+        if (Object.prototype.hasOwnProperty.call(parsed, 'soundsEnabled')) {
+          delete parsed.soundsEnabled;
+        }
       }
       return { ...defaults, ...parsed };
     } catch (error) {

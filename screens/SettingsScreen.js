@@ -235,7 +235,7 @@ export default function SettingsScreen({
                           <Image source={{ uri: profilePic }} style={styles.avatar} />
                       ) : (
                           <View style={styles.placeholderAvatar}>
-                              <Ionicons name="person" size={36} color="rgba(255,255,255,0.8)" />
+                              <Ionicons name="person" size={36} color={COLOR.white} />
                           </View>
                       )}
                       <View style={styles.cameraBadge}>
