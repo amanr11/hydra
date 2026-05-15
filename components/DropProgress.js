@@ -1,26 +1,33 @@
+// components/DropProgress.js - Fixed version that won't crash
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, View, Easing, Text } from 'react-native';
+import { Animated, View, Easing, StyleSheet, Text } from 'react-native';
 import PropTypes from 'prop-types';
-import Svg, { Path, Defs, LinearGradient, Stop, Circle, ClipPath, Rect as SvgRect } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop, Circle, ClipPath, Rect } from 'react-native-svg';
 import { COLOR } from './Theme';
 
-const AnimatedRect = Animated.createAnimatedComponent(SvgRect);
+// Create animated component OUTSIDE the main component
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
-export default function DropProgress({ progress = 0, size = 220, text, subtitle, theme }) {
+export default function DropProgress({ progress = 0, size = 220, text, subtitle, color, theme }) {
   const animatedHeight = useRef(new Animated.Value(0)).current;
   const bounce = useRef(new Animated.Value(1)).current;
   const [showSparkles, setShowSparkles] = useState(false);
 
+  // Safely clamp progress between 0 and 1
+  const safeProgress = Math.max(0, Math.min(1, progress || 0));
+
   useEffect(() => {
     Animated.timing(animatedHeight, {
-      toValue: progress,
+      toValue: safeProgress,
       duration: 1200,
       easing: Easing.out(Easing.quad),
       useNativeDriver: false,
     }).start(() => {
-      if (progress >= 1) triggerPop();
+      if (safeProgress >= 1) {
+        triggerPop();
+      }
     });
-  }, [progress]);
+  }, [safeProgress, animatedHeight]);
 
   const triggerPop = () => {
     setShowSparkles(true);
@@ -50,10 +57,10 @@ export default function DropProgress({ progress = 0, size = 220, text, subtitle,
   const dropHeight = size * 0.91;
   const dropWidth = size * 0.64;
 
-  // Dynamic text sizing based on content length
+  // Dynamic text sizing
   const getTextSize = (textContent) => {
     if (!textContent) return 24;
-    const length = textContent.toString().length;
+    const length = String(textContent).length;
     if (length <= 6) return 24;
     if (length <= 8) return 20;
     if (length <= 10) return 18;
@@ -63,109 +70,65 @@ export default function DropProgress({ progress = 0, size = 220, text, subtitle,
   const mainTextSize = getTextSize(text);
   const subtitleTextSize = Math.max(12, mainTextSize - 6);
 
+  // Use provided color or default
+  const dropColor = color || COLOR.skyBlue;
+
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', margin: 20 }}>
-      <Animated.View style={{ transform: [{ scale: bounce }] }}>
-        <Svg width={dropWidth} height={dropHeight} viewBox="0 0 140 200">
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={{ transform: [{ scale: bounce }], width: size, height: size }}>
+        <Svg width={size} height={size} viewBox="0 0 100 100">
           <Defs>
-            <ClipPath id="dropClip">
-              {/* Proper water drop shape - pointed at top, rounded at bottom */}
-              <Path d="M70 5 C85 25, 120 80, 120 130 C120 165, 105 190, 70 190 C35 190, 20 165, 20 130 C20 80, 55 25, 70 5 Z" />
+            <ClipPath id="clip">
+              <Path d="M50 0C50 0 20 35 20 60C20 76.5685 33.4315 90 50 90C66.5685 90 80 76.5685 80 60C80 35 50 0 50 0Z" />
             </ClipPath>
             <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={COLOR.skyBlue} stopOpacity="0.9" />
-              <Stop offset="50%" stopColor={COLOR.aquaMint} stopOpacity="0.8" />
-              <Stop offset="100%" stopColor="#0080ff" stopOpacity="1" />
+              <Stop offset="0" stopColor={COLOR.skyBlue} />
+              <Stop offset="1" stopColor={COLOR.aquaMint} />
             </LinearGradient>
           </Defs>
-
-          {/* Water drop outline */}
-          <Path
-            d="M70 5 C85 25, 120 80, 120 130 C120 165, 105 190, 70 190 C35 190, 20 165, 20 130 C20 80, 55 25, 70 5 Z"
-            stroke={COLOR.skyBlue}
-            strokeWidth={3}
-            fill="rgba(58, 190, 255, 0.1)"
-          />
-
-          {/* Animated fill */}
-          <AnimatedRect
-            x={0}
-            y={fillY}
-            width={140}
-            height={200}
-            fill="url(#grad)"
-            clipPath="url(#dropClip)"
-          />
-
-          {/* Surface ripple effect when full - REMOVED to fix grey circle bug */}
           
-          {/* Sparkles when complete */}
-          {showSparkles && (
-            <>
-              <Circle cx="40" cy="60" r="3" fill="#fff" opacity={0.9} />
-              <Circle cx="100" cy="80" r="4" fill="#fff" opacity={0.8} />
-              <Circle cx="60" cy="40" r="2" fill="#fff" opacity={0.9} />
-              <Circle cx="85" cy="120" r="3" fill="#fff" opacity={0.7} />
-              <Circle cx="55" cy="100" r="2" fill="#fff" opacity={0.8} />
-            </>
-          )}
+          {/* Background Drop (The "Empty" part) */}
+          <Path 
+            d="M50 0C50 0 20 35 20 60C20 76.5685 33.4315 90 50 90C66.5685 90 80 76.5685 80 60C80 35 50 0 50 0Z" 
+            fill="rgba(255,255,255,0.1)" 
+          />
+
+          {/* Filling Water */}
+          <AnimatedRect
+            x="0"
+            y={animatedHeight.interpolate({ inputRange: [0, 1], outputRange: [90, 0] })}
+            width="100"
+            height="100"
+            fill="url(#grad)"
+            clipPath="url(#clip)"
+          />
         </Svg>
 
-        {/* Text overlay - positioned in the wider part of the drop */}
-        <View style={{
-          position: 'absolute',
-          top: '50%',
-          left: 0,
-          right: 0,
-          alignItems: 'center',
-          paddingHorizontal: 15, // Add padding to prevent overflow
-        }}>
-          <Text style={{
-            fontSize: mainTextSize,
-            fontWeight: '800',
-            color: progress > 0.3 ? COLOR.white : COLOR.skyBlue,
-            textShadowColor: 'rgba(0,0,0,0.4)',
-            textShadowOffset: { width: 1, height: 1 },
-            textShadowRadius: 3,
-            textAlign: 'center',
-            numberOfLines: 1,
-            adjustsFontSizeToFit: true,
-          }}>
-            {text}
-          </Text>
-          {subtitle && (
-            <Text style={{
-              fontSize: subtitleTextSize,
-              color: progress > 0.3 ? COLOR.white : COLOR.aquaMint,
-              fontWeight: '600',
-              marginTop: 4,
-              opacity: 0.9,
-              textAlign: 'center',
-              numberOfLines: 1,
-              adjustsFontSizeToFit: true,
-            }}>
-              {subtitle}
-            </Text>
-          )}
+        {/* Improved Text Overlay */}
+        <View style={styles.textOverlay}>
+          <Text style={styles.percentageText}>{Math.round(progress * 100)}%</Text>
+          {subtitle && <Text style={styles.subText}>{subtitle}</Text>}
         </View>
       </Animated.View>
-
-      <Text style={{
-        marginTop: 10,
-        fontSize: 16,
-        fontWeight: '600',
-        color: COLOR.white,
-      }}>
-        {Math.round(progress * 100)}% Complete
-      </Text>
     </View>
   );
 }
 
-DropProgress.propTypes = {
-  progress: PropTypes.number,
-  size: PropTypes.number,
-  text: PropTypes.string,
-  subtitle: PropTypes.string,
-  theme: PropTypes.object
-};
+const styles = StyleSheet.create({
+  textOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 20 // Adjust for drop shape
+  },
+  percentageText: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: 'white',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  subText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 12, textTransform: 'uppercase' }
+});

@@ -6,8 +6,11 @@ import {
   signOut,
   onAuthStateChanged,
   reload,
+  deleteUser,
 } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, isFirebaseConfigured, db} from '../firebase';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 
 class AuthService {
   /**
@@ -16,14 +19,15 @@ class AuthService {
    * @returns {{ success: boolean, user?: object, error?: string }}
    */
   static async signUp(email, password) {
-    if (!isFirebaseConfigured || !auth) {
-      return { success: false, error: 'Firebase is not configured.' };
-    }
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(credential.user);
+      
+      // Don't send Firebase's default email - Cloud Function will send custom one!
+      // await sendEmailVerification(credential.user); // REMOVE THIS
+      
       return { success: true, user: credential.user };
     } catch (e) {
+      console.error('❌ Sign up error:', e.code, e.message);
       return { success: false, error: AuthService._friendlyError(e.code) };
     }
   }
@@ -75,12 +79,45 @@ class AuthService {
   static async resendVerification(user) {
     if (!user) return { success: false, error: 'No user provided.' };
     try {
-      await sendEmailVerification(user);
+      // Instead of the default Firebase email, we create a doc 
+      // that triggers our "onResendRequested" Cloud Function
+      await setDoc(doc(db, 'resendRequests', user.uid), {
+        requestedAt: serverTimestamp(),
+      });
+      return { success: true };
+    } catch (e) {
+      console.error(e);
+      return { success: false, error: 'Failed to request resend.' };
+    }
+  }
+  
+  static async reauthenticateWithPassword(user, password) {
+    try {
+      const credential = EmailAuthProvider.credential(user.email, password);
+      await reauthenticateWithCredential(user, credential);
       return { success: true };
     } catch (e) {
       return { success: false, error: AuthService._friendlyError(e.code) };
     }
   }
+
+  static async deleteAccount(user, password) {
+  try {
+    // Step 1: re-authenticate
+    const reauth = await AuthService.reauthenticateWithPassword(user, password);
+
+    if (!reauth.success) {
+      return reauth;
+    }
+
+    // Step 2: delete account
+    await deleteUser(user);
+
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
 
   /**
    * Subscribe to auth state changes.

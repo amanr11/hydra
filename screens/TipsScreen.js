@@ -1,273 +1,53 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import GradientBackground from '../components/GradientBackground';
 import { COLOR } from '../components/Theme';
-import * as Animatable from 'react-native-animatable';
 
-const AUTO_ADVANCE_DELAY = 5000;
+const TIPS = [
+  { title: "Morning Kickstart", body: "Drinking 500ml of water right after waking up fires up your metabolism.", icon: "sunny", color: COLOR.amber },
+  { title: "Cognitive Focus", body: "Brain tissue is 75% water. Stay hydrated to avoid brain fog and fatigue.", icon: "brain", color: COLOR.skyBlue },
+  { title: "Workout Recovery", body: "Sip water every 15 minutes during exercise to prevent muscle cramps.", icon: "fitness", color: COLOR.aquaMint }
+];
 
-export default function TipsScreen({ theme }) {
-  const [currentTipIndex, setCurrentTipIndex] = useState(0);
-  const autoAdvanceTimer = useRef(null);
-  const userInteractedRef = useRef(false);
-  
-  const tips = [
-    {
-      title: 'Morning Hydration',
-      tip: 'Drink a glass of water first thing in the morning to kickstart your metabolism.',
-      emoji: '🌅',
-      category: 'Morning'
-    },
-    {
-      title: 'Workplace Reminder',
-      tip: 'Keep a water bottle at your desk as a visual reminder to drink throughout the day.',
-      emoji: '💼',
-      category: 'Work'
-    },
-    {
-      title: 'Flavor Enhancement',
-      tip: 'Add slices of lemon, cucumber, or mint to make water more appealing and tasty.',
-      emoji: '🍋',
-      category: 'Flavor'
-    },
-    {
-      title: 'Pre-meal Hydration',
-      tip: 'Drink water 30 minutes before meals to aid digestion and prevent overeating.',
-      emoji: '🍽️',
-      category: 'Nutrition'
-    },
-    {
-      title: 'Exercise Hydration',
-      tip: 'Drink water before, during, and after exercise to maintain optimal performance.',
-      emoji: '🏃‍♂️',
-      category: 'Exercise'
-    },
-    {
-      title: 'Temperature Matters',
-      tip: 'Room temperature water is absorbed faster than ice-cold water.',
-      emoji: '🌡️',
-      category: 'Science'
-    },
-    {
-      title: 'Sleep Quality',
-      tip: 'Stay hydrated during the day, but reduce intake 2 hours before bed for better sleep.',
-      emoji: '😴',
-      category: 'Sleep'
-    },
-    {
-      title: 'Skin Benefits',
-      tip: 'Proper hydration keeps your skin glowing and helps maintain elasticity.',
-      emoji: '✨',
-      category: 'Beauty'
-    }
-  ];
-
-  const nextTip = useCallback((fromUser = false) => {
-    if (fromUser) {
-      userInteractedRef.current = true;
-    }
-    setCurrentTipIndex((prevIndex) => (prevIndex + 1) % tips.length);
-  }, [tips.length]);
-
-  const prevTip = useCallback(() => {
-    userInteractedRef.current = true;
-    setCurrentTipIndex((prevIndex) => (prevIndex - 1 + tips.length) % tips.length);
-  }, [tips.length]);
-
-  const goToTip = useCallback((idx) => {
-    userInteractedRef.current = true;
-    setCurrentTipIndex(idx);
-  }, []);
-
-  // Reset auto-advance timer whenever currentTipIndex changes
-  useEffect(() => {
-    // If user just interacted, give a longer pause before auto-advancing again
-    const delay = userInteractedRef.current ? AUTO_ADVANCE_DELAY * 2 : AUTO_ADVANCE_DELAY;
-
-    autoAdvanceTimer.current = setTimeout(() => {
-      userInteractedRef.current = false;
-      setCurrentTipIndex((prev) => (prev + 1) % tips.length);
-    }, delay);
-
-    return () => clearTimeout(autoAdvanceTimer.current);
-  }, [currentTipIndex, tips.length]);
-
-  const currentTip = tips[currentTipIndex];
-
+export default function TipsScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ flex: 1, padding: 20 }}>
-          <Animatable.Text 
-            animation="fadeInDown"
-            style={{ fontSize: 28, fontWeight: 'bold', color: COLOR.white, marginBottom: 20 }}
-          >
-            💡 Daily Tips
-          </Animatable.Text>
-
-          {/* Featured Tip Card */}
-          <Animatable.View 
-            key={currentTipIndex}
-            animation="fadeIn"
-            style={{
-              backgroundColor: 'rgba(111, 231, 221, 0.15)',
-              borderRadius: 20,
-              padding: 25,
-              marginBottom: 20,
-              borderWidth: 1,
-              borderColor: COLOR.aquaMint,
-              minHeight: 200,
-              justifyContent: 'center',
-            }}
-          >
-            <View style={{ alignItems: 'center', marginBottom: 15 }}>
-              <Text style={{ fontSize: 60, marginBottom: 10 }}>{currentTip.emoji}</Text>
-              <View style={{
-                backgroundColor: COLOR.skyBlue,
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 15,
-              }}>
-                <Text style={{ color: COLOR.white, fontWeight: '600', fontSize: 12 }}>
-                  {currentTip.category}
-                </Text>
-              </View>
-            </View>
-            
-            <Text style={{ 
-              color: COLOR.white, 
-              fontWeight: '700', 
-              fontSize: 20, 
-              textAlign: 'center',
-              marginBottom: 15
-            }}>
-              {currentTip.title}
-            </Text>
-            
-            <Text style={{ 
-              color: COLOR.white, 
-              fontSize: 16, 
-              textAlign: 'center',
-              lineHeight: 24,
-              opacity: 0.9
-            }}>
-              {currentTip.tip}
-            </Text>
-          </Animatable.View>
-
-          {/* Navigation */}
-          <View style={{ 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: 20 
-          }}>
-            <TouchableOpacity 
-              onPress={prevTip}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                padding: 15,
-                borderRadius: 50,
-                width: 60,
-                height: 60,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ color: COLOR.white, fontSize: 20, fontWeight: 'bold' }}>‹</Text>
-            </TouchableOpacity>
-
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ color: COLOR.white, fontWeight: '600', fontSize: 16 }}>
-                Tip {currentTipIndex + 1} of {tips.length}
-              </Text>
-              <View style={{ 
-                flexDirection: 'row', 
-                marginTop: 8,
-                alignItems: 'center' 
-              }}>
-                {tips.map((_, index) => (
-                  <View
-                    key={index}
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: index === currentTipIndex ? COLOR.aquaMint : 'rgba(255,255,255,0.3)',
-                      marginHorizontal: 3,
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity 
-              onPress={() => nextTip(true)}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                padding: 15,
-                borderRadius: 50,
-                width: 60,
-                height: 60,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ color: COLOR.white, fontSize: 20, fontWeight: 'bold' }}>›</Text>
-            </TouchableOpacity>
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={styles.title}>Tips & Insights</Text>
+          
+          <View style={styles.hero}>
+            <Ionicons name="water" size={40} color={COLOR.skyBlue} />
+            <Text style={styles.heroTitle}>Did you know?</Text>
+            <Text style={styles.heroBody}>By the time you feel thirsty, you are already dehydrated. Small sips throughout the day are best!</Text>
           </View>
 
-          {/* All Tips List */}
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            <Text style={{ 
-              color: COLOR.white, 
-              fontWeight: '600', 
-              fontSize: 18, 
-              marginBottom: 15 
-            }}>
-              All Tips
-            </Text>
-            {tips.map((tipItem, idx) => (
-              <TouchableOpacity
-                key={idx}
-                onPress={() => goToTip(idx)}
-                style={{
-                  marginBottom: 10,
-                  backgroundColor: idx === currentTipIndex 
-                    ? 'rgba(111, 231, 221, 0.15)' 
-                    : 'rgba(255,255,255,0.1)',
-                  padding: 15,
-                  borderRadius: 12,
-                  borderWidth: idx === currentTipIndex ? 1 : 0,
-                  borderColor: COLOR.aquaMint,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 20, marginRight: 10 }}>{tipItem.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      color: COLOR.white, 
-                      fontWeight: '600', 
-                      fontSize: 14 
-                    }}>
-                      {tipItem.title}
-                    </Text>
-                    <Text style={{ 
-                      color: COLOR.white, 
-                      opacity: 0.7, 
-                      fontSize: 12, 
-                      marginTop: 2 
-                    }}>
-                      {tipItem.category}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+          {TIPS.map((tip, i) => (
+            <View key={i} style={styles.card}>
+              <View style={[styles.iconBox, { backgroundColor: tip.color + '20' }]}>
+                <Ionicons name={tip.icon} size={24} color={tip.color} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 15 }}>
+                <Text style={styles.cardTitle}>{tip.title}</Text>
+                <Text style={styles.cardBody}>{tip.body}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       </SafeAreaView>
     </GradientBackground>
   );
 }
+
+const styles = StyleSheet.create({
+  title: { fontSize: 32, fontWeight: '900', color: 'white', marginBottom: 20 },
+  hero: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 25, borderRadius: 25, marginBottom: 25 },
+  heroTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginTop: 10 },
+  heroBody: { color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 5, lineHeight: 20 },
+  card: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', padding: 18, borderRadius: 20, marginBottom: 15, alignItems: 'center' },
+  iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  cardTitle: { color: 'white', fontSize: 16, fontWeight: '700' },
+  cardBody: { color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }
+});

@@ -13,7 +13,7 @@ export const calculateSmartGoal = (userProfile) => {
   baseGoal *= activityMultipliers[activityLevel] || 1.2;
 
   // Adjust for awake time
-  const wakeHour = parseInt(wakeTime.split(':')[0], 10);
+  const wakeHour = parseInt((wakeTime || "07:00").split(':')[0], 10);
   const sleepHour = parseInt(sleepTime.split(':')[0], 10);
   const awakeHours = (sleepHour > wakeHour) ? (sleepHour - wakeHour) : (24 - wakeHour + sleepHour);
   baseGoal *= (awakeHours / 16); // Average awake hours is 16

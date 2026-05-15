@@ -1,36 +1,31 @@
-
 // KEEP THIS FILE PRIVATE AND NEVER SHARE IT.
 
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your web app's Firebase configuration
-// Replace these with your actual credentials from the Firebase console
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDNUAOVLRT562wHaTdXLxygFBXmpeUPr_0",
+  authDomain: "hydra-a8bac.firebaseapp.com",
+  projectId: "hydra-a8bac",
+  storageBucket: "hydra-a8bac.firebasestorage.app",
+  messagingSenderId: "821848397936",
+  appId: "1:821848397936:web:dcf42c5f94800ca396bcb5",
+  measurementId: "G-NMSJTYJ1CP"
 };
 
-// Check if Firebase has real credentials configured
-const isFirebaseConfigured = !Object.values(firebaseConfig).some(v =>
-  typeof v === 'string' && v.startsWith('YOUR_')
-);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-let app = null;
-let auth = null;
-let db = null;
+// Initialize Auth with AsyncStorage persistence (fixes the warning!)
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
 
-if (isFirebaseConfigured) {
-  // Initialize Firebase only when real credentials are present
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-}
+// Initialize Firestore
+const db = getFirestore(app);
 
-// Export the initialized services so you can use them anywhere in your app
-export { app, auth, db, isFirebaseConfigured };
+export { app, auth, db };
+export const isFirebaseConfigured = true;

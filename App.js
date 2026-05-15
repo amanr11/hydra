@@ -45,16 +45,29 @@ export default function App() {
 
   // Subscribe to Firebase auth state changes (only when Firebase is configured)
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setAuthUser(null); // no Firebase → skip auth
-      return;
-    }
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      setAuthUser(user ?? null);
-    });
-    return unsubscribe;
-  }, []);
-
+      if (!isFirebaseConfigured) {
+        setAuthUser(null);
+        return;
+      }
+    
+      let previousUid = null;
+    
+      const unsubscribe = AuthService.onAuthStateChanged(async (user) => {
+        // If user changed (new account), clear local data
+        if (user && previousUid && user.uid !== previousUid) {
+          console.log('🔄 New user detected → clearing local data');
+          await StorageService.clearAllData();
+          await NotificationService.cancelAllReminders();
+        }
+    
+        previousUid = user?.uid ?? null;
+    
+        setAuthUser(user ?? null);
+      });
+    
+      return unsubscribe;
+    }, []);
+    
   const loadUserData = async () => {
     try {
       setLoading(true);

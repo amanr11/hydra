@@ -5,55 +5,37 @@ import { COLOR } from './Theme';
 
 const screenWidth = Dimensions.get('window').width;
 
-export default function WaveBottom({ height = 60 }) {
+export default function WaveBottom() {
   const bob = useRef(new Animated.Value(0)).current;
+  const WAVE_HEIGHT = 40; // Hardcoded small height
 
   useEffect(() => {
-    const animation = Animated.loop(
+    Animated.loop(
       Animated.sequence([
-        Animated.timing(bob, {
-          toValue: 1,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bob, {
-          toValue: 0,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-      ]),
-      { iterations: -1 }
-    );
-    animation.start();
-    return () => animation.stop();
+        Animated.timing(bob, { toValue: 1, duration: 4000, useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 4000, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
   const translateY = bob.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, -6, 0],
+    inputRange: [0, 1],
+    outputRange: [2, -2],
   });
 
   return (
-    <View style={[styles.container, { height: height + 30 }]}>
+    <View style={styles.container} pointerEvents="none">
       <Animated.View style={{ transform: [{ translateY }] }}>
-        <Svg width={screenWidth} height={height + 30} viewBox={`0 0 ${screenWidth} ${height + 30}`}>
+        <Svg width={screenWidth} height={WAVE_HEIGHT} viewBox={`0 0 ${screenWidth} ${WAVE_HEIGHT}`}>
           <Defs>
-            <LinearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0" stopColor={COLOR.aquaMint} stopOpacity="0.1" />
-              <Stop offset="1" stopColor={COLOR.skyBlue} stopOpacity="0.1" />
-            </LinearGradient>
-            <LinearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0" stopColor={COLOR.aquaMint} stopOpacity="0.25" />
-              <Stop offset="1" stopColor={COLOR.skyBlue} stopOpacity="0.25" />
+            <LinearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={COLOR.skyBlue} stopOpacity="0.2" />
+              <Stop offset="1" stopColor={COLOR.aquaMint} stopOpacity="0.1" />
             </LinearGradient>
           </Defs>
           <Path
-            d={`M0,20 Q${screenWidth / 4},0 ${screenWidth / 2},20 T${screenWidth},20 L${screenWidth},${height + 30} L0,${height + 30} Z`}
-            fill="url(#g1)"
-          />
-          <Path
-            d={`M0,25 Q${screenWidth / 4},5 ${screenWidth / 2},25 T${screenWidth},25 L${screenWidth},${height + 30} L0,${height + 30} Z`}
-            fill="url(#g2)"
+            d={`M0,10 C${screenWidth/4},0 ${screenWidth/2},20 ${screenWidth},10 L${screenWidth},${WAVE_HEIGHT} L0,${WAVE_HEIGHT} Z`}
+            fill="url(#waveGrad)"
           />
         </Svg>
       </Animated.View>
@@ -64,9 +46,10 @@ export default function WaveBottom({ height = 60 }) {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: -15, // to hide the hard edge
-    pointerEvents: 'none', // allow scroll and touch events to pass through the wave overlay
+    height: 40,
+    zIndex: 0,
   },
 });
